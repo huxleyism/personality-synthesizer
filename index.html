@@ -254,54 +254,17 @@
             border: 1px solid var(--border-color);
         }
 
-        /* Keyboard */
-        #keyboard-section {
-            padding: 15px;
+        .palette-item .palette-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 2px;
         }
 
-        #keyboard {
-            display: flex;
-            height: 80px;
-            position: relative;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .white-key {
-            flex: 1;
-            background: linear-gradient(180deg, #f0f0f0 0%, #d0d0d0 100%);
-            border: 1px solid #999;
-            border-radius: 0 0 4px 4px;
-            cursor: pointer;
-            transition: background 0.1s;
-            z-index: 1;
-        }
-
-        .white-key:hover {
-            background: linear-gradient(180deg, #fff 0%, #e0e0e0 100%);
-        }
-
-        .white-key.active {
-            background: linear-gradient(180deg, #ddd 0%, #bbb 100%);
-        }
-
-        .black-key {
-            position: absolute;
-            width: 60%;
-            height: 55%;
-            background: linear-gradient(180deg, #333 0%, #111 100%);
-            border-radius: 0 0 3px 3px;
-            cursor: pointer;
-            z-index: 2;
-            transform: translateX(-50%);
-        }
-
-        .black-key:hover {
-            background: linear-gradient(180deg, #444 0%, #222 100%);
-        }
-
-        .black-key.active {
-            background: linear-gradient(180deg, #222 0%, #000 100%);
+        .palette-item .palette-desc {
+            display: block;
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            line-height: 1.3;
         }
 
         /* Synth Module Styles */
@@ -689,6 +652,102 @@
             display: none;
         }
 
+        .personality-summary {
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .personality-summary h4 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+            color: var(--accent-output);
+        }
+
+        .personality-summary ul {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 6px 0;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 4px 12px;
+        }
+
+        .personality-summary li span {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .sidebar-actions {
+            display: grid;
+            gap: 8px;
+        }
+
+        .sidebar-actions .header-btn {
+            width: 100%;
+        }
+
+        .sidebar-textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 8px;
+            background: var(--bg-module);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            resize: vertical;
+        }
+
+        .scenario-buttons {
+            display: grid;
+            gap: 6px;
+        }
+
+        .scenario-buttons .header-btn {
+            width: 100%;
+            text-align: left;
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .history-item {
+            padding: 6px 8px;
+            background: var(--bg-module);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        .history-item span {
+            color: var(--accent-primary);
+            font-weight: 600;
+        }
+
+        .start-steps {
+            margin: 0 0 20px 0;
+            padding: 0;
+            list-style: none;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            font-size: 0.95rem;
+        }
+
+        .start-steps li {
+            margin-bottom: 6px;
+        }
+
         /* Highlight animation for duplicate prevention */
         @keyframes highlight-pulse {
             0% { box-shadow: 0 0 0 0 var(--accent-output); }
@@ -937,13 +996,43 @@
                 </div>
 
                 <div class="sidebar-section">
-                    <h3>Examples</h3>
-                    <div id="presets-list">
-                        <button class="preset-btn" data-preset="basic">Example 1</button>
-                        <button class="preset-btn" data-preset="bass">Example 2</button>
-                        <button class="preset-btn" data-preset="lead">Example 3</button>
-                        <button class="preset-btn" data-preset="pad">Example 4</button>
+                    <h3>Scenario Lab</h3>
+                    <div class="scenario-buttons">
+                        <button class="header-btn" data-scenario="player-hurt">Player Hurt → Defensive spike</button>
+                        <button class="header-btn" data-scenario="asked-help">Asked for Help → Support focus</button>
+                        <button class="header-btn" data-scenario="shared-joke">Shared Joke → Playful lift</button>
+                        <button class="header-btn" data-scenario="ignored">Ignored → Withdraw & analyze</button>
                     </div>
+                    <p class="info-text">Scenarios temporarily nudge modules so you can see the companion’s personality respond.</p>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Personality History</h3>
+                    <div id="personality-history" class="history-list">
+                        <div class="history-item">No interactions yet.</div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Session Tools</h3>
+                    <div class="sidebar-actions">
+                        <button id="save-session" class="header-btn">Save Session</button>
+                        <button id="load-session" class="header-btn">Load Session</button>
+                        <button id="export-session" class="header-btn">Export JSON</button>
+                    </div>
+                    <textarea id="session-json" class="sidebar-textarea" placeholder="Paste session JSON here to import."></textarea>
+                    <button id="import-session" class="header-btn" style="margin-top: 8px;">Import JSON</button>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Personality Experiments</h3>
+                    <div id="presets-list">
+                        <button class="preset-btn" data-preset="basic">Steady Companion</button>
+                        <button class="preset-btn" data-preset="bass">Guarded Protector</button>
+                        <button class="preset-btn" data-preset="lead">Playful Explorer</button>
+                        <button class="preset-btn" data-preset="pad">Reflective Analyst</button>
+                    </div>
+                    <p class="info-text">Use these as starting points for different AI companion moods.</p>
                 </div>
             </aside>
         </main>
@@ -951,7 +1040,11 @@
 
     <div id="start-overlay">
         <h2>Personality Synthesizer</h2>
-        <p>Click to initialize audio</p>
+        <ul class="start-steps">
+            <li>1. Drop modules into the workspace and connect them.</li>
+            <li>2. Tweak sliders to shape the companion’s mood.</li>
+            <li>3. Trigger scenarios to preview in-game reactions.</li>
+        </ul>
         <button id="start-btn">Start</button>
     </div>
 
@@ -1013,8 +1106,7 @@
             connections: [],
             selectedModule: null,
             pendingConnection: null,
-            moduleCounter: 0,
-            noteFrequencies: {}
+            moduleCounter: 0
         };
 
         // ==================== HISTORY (UNDO/REDO) ====================
@@ -1152,6 +1244,212 @@
             }
         };
 
+        // ==================== PERSONALITY SNAPSHOT ====================
+        const personalityHistory = [];
+        const personalityHistoryLimit = 8;
+        let snapshotTimer = null;
+        let lastParamLogTime = 0;
+        const moduleTooltips = {
+            vco: 'Sensory input streams from the player and world.',
+            noise: 'Chaos and novelty that can destabilize or inspire.',
+            memory: 'Long-term recall shaping reactions and stability.',
+            knowledge: 'Lore or rules the companion draws from.',
+            vcf: 'Attention lens that filters incoming signals.',
+            mixer: 'Combines signals into a unified interpretation.',
+            vca: 'Agency gate controlling willingness to act.',
+            adsr: 'Reaction envelope defining timing and recovery.',
+            lfo: 'Mood drift that modulates intensity over time.',
+            master: 'Behavioral core output for voice and action.'
+        };
+
+        const portTooltips = {
+            vco: {
+                frequency: 'Modulate sensitivity or alertness.',
+                audio: 'Raw sensory stream output.'
+            },
+            noise: {
+                audio: 'Unpredictable signal injection.'
+            },
+            memory: {
+                audio: 'Experience input for recall.',
+                output: 'Recalled context signal.'
+            },
+            knowledge: {
+                audio: 'Knowledge stream output.'
+            },
+            vcf: {
+                audio: 'Filtered attention output.',
+                frequency: 'Shift focus or vigilance.'
+            },
+            mixer: {
+                ch1: 'Signal slot 1.',
+                ch2: 'Signal slot 2.',
+                ch3: 'Signal slot 3.',
+                ch4: 'Signal slot 4.',
+                audio: 'Unified interpretation output.'
+            },
+            vca: {
+                audio: 'Agency filtered output.',
+                gain: 'Drive agency up/down.'
+            },
+            adsr: {
+                input: 'Trigger in.',
+                envelope: 'Response envelope output.'
+            },
+            lfo: {
+                modulation: 'Mood modulation output.'
+            },
+            master: {
+                audio: 'Final behavior input.'
+            }
+        };
+
+        function clamp01(value) {
+            return Math.min(1, Math.max(0, value));
+        }
+
+        function getModulesByType(type) {
+            return Array.from(state.modules.values()).filter(module => module.type === type);
+        }
+
+        function averageParam(type, param, fallback = 0) {
+            const modules = getModulesByType(type);
+            if (modules.length === 0) return fallback;
+            const total = modules.reduce((sum, module) => {
+                const value = module.params?.[param];
+                return sum + (typeof value === 'number' ? value : 0);
+            }, 0);
+            return total / modules.length;
+        }
+
+        function modeScore(modeName) {
+            const modules = getModulesByType('vcf');
+            if (modules.length === 0) return 0;
+            const total = modules.reduce((sum, module) => sum + (module.params?.modes?.[modeName] ? 1 : 0), 0);
+            return total / modules.length;
+        }
+
+        function computePersonalityTraits() {
+            const curiosity = clamp01(
+                (averageParam('noise', 'level') +
+                averageParam('knowledge', 'intensity') +
+                modeScore('open')) / 2.5
+            );
+
+            const warmth = clamp01(
+                (averageParam('lfo', 'depth') / 1000 +
+                averageParam('adsr', 'sustain') +
+                averageParam('mixer', 'ch1')) / 3
+            );
+
+            const vigilance = clamp01(
+                (modeScore('vigilant') + averageParam('vcf', 'resonance') / 30) / 2
+            );
+
+            const spontaneity = clamp01(averageParam('vca', 'level'));
+
+            const reflection = clamp01(
+                (averageParam('memory', 'depth') +
+                averageParam('memory', 'decay') +
+                averageParam('knowledge', 'intensity')) / 3
+            );
+
+            const stability = clamp01(
+                (averageParam('adsr', 'sustain') +
+                (1 - Math.min(averageParam('lfo', 'rate') / 20, 1))) / 2
+            );
+
+            return {
+                curiosity,
+                warmth,
+                vigilance,
+                spontaneity,
+                reflection,
+                stability
+            };
+        }
+
+        function describePersonality(traits) {
+            const sorted = Object.entries(traits).sort((a, b) => b[1] - a[1]);
+            const [primary, secondary] = sorted;
+            if (!primary || primary[1] < 0.2) {
+                return 'A neutral core waiting for stronger signals.';
+            }
+
+            const labelMap = {
+                curiosity: 'curious',
+                warmth: 'warm',
+                vigilance: 'guarded',
+                spontaneity: 'impulsive',
+                reflection: 'reflective',
+                stability: 'steady'
+            };
+
+            const primaryLabel = labelMap[primary[0]];
+            const secondaryLabel = secondary ? labelMap[secondary[0]] : null;
+
+            if (secondary && secondary[1] > 0.45) {
+                return `Currently ${primaryLabel} with a ${secondaryLabel} undertone.`;
+            }
+
+            return `Currently leaning ${primaryLabel}.`;
+        }
+
+        function updatePersonalitySnapshot() {
+            const summaryEl = document.querySelector('[data-personality-summary]');
+            if (!summaryEl) return;
+            const traits = computePersonalityTraits();
+
+            summaryEl.querySelectorAll('[data-trait]').forEach(el => {
+                const trait = el.dataset.trait;
+                if (traits[trait] !== undefined) {
+                    el.textContent = traits[trait].toFixed(2);
+                }
+            });
+
+            const summaryText = summaryEl.querySelector('[data-trait-summary]');
+            if (summaryText) {
+                summaryText.textContent = describePersonality(traits);
+            }
+        }
+
+        function schedulePersonalitySnapshot() {
+            if (snapshotTimer) {
+                clearTimeout(snapshotTimer);
+            }
+            snapshotTimer = setTimeout(() => {
+                updatePersonalitySnapshot();
+                snapshotTimer = null;
+            }, 120);
+        }
+
+        function logPersonalityEvent(message) {
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            personalityHistory.unshift({ time, message });
+            if (personalityHistory.length > personalityHistoryLimit) {
+                personalityHistory.pop();
+            }
+            updatePersonalityHistory();
+        }
+
+        function updatePersonalityHistory() {
+            const container = document.getElementById('personality-history');
+            if (!container) return;
+            if (personalityHistory.length === 0) {
+                container.innerHTML = '<div class="history-item">No interactions yet.</div>';
+                return;
+            }
+            container.innerHTML = personalityHistory
+                .map(entry => `<div class="history-item"><span>${entry.time}</span> — ${entry.message}</div>`)
+                .join('');
+        }
+
+        function getPortTooltip(module, portName, isOutput) {
+            const moduleTips = portTooltips[module.type] || {};
+            if (moduleTips[portName]) return moduleTips[portName];
+            return isOutput ? 'Output signal.' : 'Input signal.';
+        }
+
         // Helper to create module with specific ID (for undo/redo)
         function createModuleWithId(type, id) {
             let module;
@@ -1182,20 +1480,6 @@
             state.modules.set(id, module);
             return module;
         }
-
-        // Note frequencies for keyboard
-        const noteFreqs = {
-            'C4': 261.63, 'C#4': 277.18, 'D4': 293.66, 'D#4': 311.13,
-            'E4': 329.63, 'F4': 349.23, 'F#4': 369.99, 'G4': 392.00,
-            'G#4': 415.30, 'A4': 440.00, 'A#4': 466.16, 'B4': 493.88, 'C5': 523.25
-        };
-
-        // Key mappings
-        const keyMap = {
-            'a': 'C4', 'w': 'C#4', 's': 'D4', 'e': 'D#4', 'd': 'E4',
-            'f': 'F4', 't': 'F#4', 'g': 'G4', 'y': 'G#4', 'h': 'A4',
-            'u': 'A#4', 'j': 'B4', 'k': 'C5'
-        };
 
         // ==================== BASE MODULE CLASS ====================
         class SynthModule {
@@ -2085,6 +2369,18 @@
                             <span class="output-label">Command Interface</span>
                         </div>
                     </div>
+                    <div class="personality-summary" data-personality-summary>
+                        <h4>Personality Snapshot</h4>
+                        <ul>
+                            <li>Curiosity: <span data-trait="curiosity">0.00</span></li>
+                            <li>Warmth: <span data-trait="warmth">0.00</span></li>
+                            <li>Vigilance: <span data-trait="vigilance">0.00</span></li>
+                            <li>Spontaneity: <span data-trait="spontaneity">0.00</span></li>
+                            <li>Reflection: <span data-trait="reflection">0.00</span></li>
+                            <li>Stability: <span data-trait="stability">0.00</span></li>
+                        </ul>
+                        <div data-trait-summary>Awaiting signal blend...</div>
+                    </div>
                 `;
             }
         }
@@ -2325,6 +2621,15 @@
 
             module.element = el;
             modulesContainer.appendChild(el);
+            const header = el.querySelector('.module-header');
+            if (header) {
+                header.title = moduleTooltips[module.type] || module.name;
+            }
+            el.querySelectorAll('.port').forEach(port => {
+                const portName = port.dataset.port;
+                const isOutput = port.classList.contains('output');
+                port.title = getPortTooltip(module, portName, isOutput);
+            });
 
             // Setup module event listeners
             setupModuleEvents(module, el);
@@ -2333,6 +2638,7 @@
             if (module.type === 'adsr') {
                 setTimeout(() => module.updateADSRDisplay(), 10);
             }
+            schedulePersonalitySnapshot();
 
             return el;
         }
@@ -2395,6 +2701,13 @@
                     history.trackParamChange();
 
                     module.updateParam(param, value);
+                    schedulePersonalitySnapshot();
+
+                    const now = Date.now();
+                    if (now - lastParamLogTime > 900) {
+                        logPersonalityEvent(`${module.name} → ${param} adjusted.`);
+                        lastParamLogTime = now;
+                    }
 
                     // Update value display
                     const label = e.target.parentElement.querySelector('label .value');
@@ -2448,6 +2761,8 @@
                     if (mode && module.toggleMode) {
                         module.toggleMode(mode);
                     }
+                    logPersonalityEvent(`${module.name} toggled ${channel || mode}.`);
+                    schedulePersonalitySnapshot();
                 });
             });
 
@@ -2552,6 +2867,8 @@
         function createConnection(sourceModule, sourcePort, targetModule, targetPort) {
             history.pushState();
             createConnectionWithoutHistory(sourceModule, sourcePort, targetModule, targetPort);
+            logPersonalityEvent(`Linked ${sourceModule.name} → ${targetModule.name}.`);
+            schedulePersonalitySnapshot();
         }
 
         function removeConnectionWithoutHistory(connectionId) {
@@ -2576,6 +2893,8 @@
         function removeConnection(connectionId) {
             history.pushState();
             removeConnectionWithoutHistory(connectionId);
+            logPersonalityEvent('Connection removed.');
+            schedulePersonalitySnapshot();
         }
 
         function updatePortVisuals() {
@@ -2615,6 +2934,8 @@
             state.modules.delete(moduleId);
 
             drawCables();
+            logPersonalityEvent(`${module.name} removed.`);
+            schedulePersonalitySnapshot();
         }
 
         // ==================== CABLE DRAWING ====================
@@ -2803,95 +3124,6 @@
         }
 
         let oscilloscope = null;
-
-        // ==================== KEYBOARD ====================
-        function setupKeyboard() {
-            const keyboard = document.getElementById('keyboard');
-            const whiteKeys = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
-            const blackKeys = [
-                { note: 'C#4', position: 12.5 },
-                { note: 'D#4', position: 26.5 },
-                { note: 'F#4', position: 54.5 },
-                { note: 'G#4', position: 68.5 },
-                { note: 'A#4', position: 82.5 }
-            ];
-
-            // White keys
-            whiteKeys.forEach((note, i) => {
-                const key = document.createElement('div');
-                key.className = 'white-key';
-                key.dataset.note = note;
-                keyboard.appendChild(key);
-
-                key.addEventListener('mousedown', () => playNote(note, key));
-                key.addEventListener('mouseup', () => stopNote(note, key));
-                key.addEventListener('mouseleave', () => stopNote(note, key));
-            });
-
-            // Black keys
-            blackKeys.forEach(({ note, position }) => {
-                const key = document.createElement('div');
-                key.className = 'black-key';
-                key.dataset.note = note;
-                key.style.left = `${position}%`;
-                keyboard.appendChild(key);
-
-                key.addEventListener('mousedown', () => playNote(note, key));
-                key.addEventListener('mouseup', () => stopNote(note, key));
-                key.addEventListener('mouseleave', () => stopNote(note, key));
-            });
-        }
-
-        function playNote(note, keyElement) {
-            if (!isRunning || state.noteFrequencies[note]) return;
-
-            const freq = noteFreqs[note];
-            state.noteFrequencies[note] = freq;
-
-            if (keyElement) keyElement.classList.add('active');
-
-            // Trigger all VCOs with this frequency
-            state.modules.forEach(module => {
-                if (module.type === 'vco') {
-                    module.setFrequency(freq);
-                }
-                if (module.type === 'adsr') {
-                    module.trigger();
-                }
-            });
-        }
-
-        function stopNote(note, keyElement) {
-            if (!state.noteFrequencies[note]) return;
-
-            delete state.noteFrequencies[note];
-            if (keyElement) keyElement.classList.remove('active');
-
-            // Release envelopes
-            state.modules.forEach(module => {
-                if (module.type === 'adsr') {
-                    module.release();
-                }
-            });
-        }
-
-        // Computer keyboard support
-        document.addEventListener('keydown', (e) => {
-            if (e.repeat) return;
-            const note = keyMap[e.key.toLowerCase()];
-            if (note) {
-                const keyEl = document.querySelector(`[data-note="${note}"]`);
-                playNote(note, keyEl);
-            }
-        });
-
-        document.addEventListener('keyup', (e) => {
-            const note = keyMap[e.key.toLowerCase()];
-            if (note) {
-                const keyEl = document.querySelector(`[data-note="${note}"]`);
-                stopNote(note, keyEl);
-            }
-        });
 
         // ==================== PRESETS ====================
         const presets = {
@@ -3126,8 +3358,172 @@
                     renderModule(master);
                     masterOutput = master;
                     oscilloscope.setAnalyser(master.getAnalyser());
+                    schedulePersonalitySnapshot();
                 }, 50);
             }
+        }
+
+        function buildSessionPayload() {
+            return {
+                version: 1,
+                savedAt: new Date().toISOString(),
+                snapshot: history.captureState(),
+                customModules: customModuleDefinitions
+            };
+        }
+
+        function applySessionPayload(payload) {
+            if (!payload || !payload.snapshot) return;
+            if (payload.customModules) {
+                customModuleDefinitions = payload.customModules;
+                saveCustomModules();
+                renderPalette();
+            }
+            history.pushState();
+            history.restoreState(payload.snapshot);
+            setTimeout(() => schedulePersonalitySnapshot(), 120);
+        }
+
+        function saveSession() {
+            const payload = buildSessionPayload();
+            localStorage.setItem('personalitySession', JSON.stringify(payload));
+            logPersonalityEvent('Session saved.');
+        }
+
+        function loadSession() {
+            const stored = localStorage.getItem('personalitySession');
+            if (!stored) {
+                alert('No saved session found.');
+                return;
+            }
+            try {
+                const payload = JSON.parse(stored);
+                applySessionPayload(payload);
+                logPersonalityEvent('Session loaded.');
+            } catch (e) {
+                console.warn('Failed to load session', e);
+                alert('Failed to load session JSON.');
+            }
+        }
+
+        function exportSession() {
+            const textarea = document.getElementById('session-json');
+            if (!textarea) return;
+            textarea.value = JSON.stringify(buildSessionPayload(), null, 2);
+            textarea.focus();
+            textarea.select();
+            logPersonalityEvent('Session exported to JSON.');
+        }
+
+        function importSession() {
+            const textarea = document.getElementById('session-json');
+            if (!textarea || !textarea.value.trim()) {
+                alert('Paste session JSON first.');
+                return;
+            }
+            try {
+                const payload = JSON.parse(textarea.value);
+                applySessionPayload(payload);
+                logPersonalityEvent('Session imported from JSON.');
+            } catch (e) {
+                console.warn('Failed to import session', e);
+                alert('Invalid JSON.');
+            }
+        }
+
+        function updateControlDisplay(module, param, value) {
+            if (!module.element) return;
+            const input = module.element.querySelector(`[data-param="${param}"]`);
+            if (!input) return;
+            input.value = value;
+            const label = input.parentElement?.querySelector('label .value');
+            if (label) {
+                if (param === 'level' || param === 'volume' || param === 'sustain' ||
+                    param.startsWith('ch') || param === 'depth' || param === 'clarity' || param === 'decay' || param === 'intensity') {
+                    label.textContent = (value * 100).toFixed(0);
+                } else if (param === 'attack' || param === 'release') {
+                    label.textContent = value.toFixed(2);
+                } else if (param === 'rate') {
+                    label.textContent = value.toFixed(1);
+                } else {
+                    label.textContent = Math.round(value);
+                }
+            }
+        }
+
+        function updateCheckboxDisplay(item, checked) {
+            item.classList.toggle('checked', checked);
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            if (checkbox) checkbox.checked = checked;
+        }
+
+        function setModuleParam(module, param, value) {
+            module.updateParam(param, value);
+            updateControlDisplay(module, param, value);
+        }
+
+        function applyScenario(scenario) {
+            const scenarios = {
+                'player-hurt': {
+                    message: 'Player hurt: shifting toward defense.',
+                    actions: () => {
+                        getModulesByType('vcf').forEach(module => {
+                            module.params.modes.vigilant = true;
+                            const modeItem = module.element?.querySelector('[data-mode="vigilant"]');
+                            if (modeItem) updateCheckboxDisplay(modeItem, true);
+                            setModuleParam(module, 'resonance', 12);
+                        });
+                        getModulesByType('adsr').forEach(module => {
+                            setModuleParam(module, 'attack', 0.02);
+                            setModuleParam(module, 'release', 0.4);
+                        });
+                        getModulesByType('vca').forEach(module => setModuleParam(module, 'level', 0.4));
+                    }
+                },
+                'asked-help': {
+                    message: 'Asked for help: boosting support and warmth.',
+                    actions: () => {
+                        getModulesByType('lfo').forEach(module => {
+                            setModuleParam(module, 'rate', 1);
+                            setModuleParam(module, 'depth', 220);
+                        });
+                        getModulesByType('vca').forEach(module => setModuleParam(module, 'level', 0.75));
+                        getModulesByType('adsr').forEach(module => setModuleParam(module, 'sustain', 0.8));
+                        getModulesByType('knowledge').forEach(module => setModuleParam(module, 'intensity', 0.8));
+                    }
+                },
+                'shared-joke': {
+                    message: 'Shared joke: lifting playfulness.',
+                    actions: () => {
+                        getModulesByType('vca').forEach(module => setModuleParam(module, 'level', 0.85));
+                        getModulesByType('noise').forEach(module => setModuleParam(module, 'level', 0.6));
+                        getModulesByType('lfo').forEach(module => setModuleParam(module, 'rate', 6));
+                    }
+                },
+                'ignored': {
+                    message: 'Ignored: withdrawing to analyze.',
+                    actions: () => {
+                        getModulesByType('memory').forEach(module => {
+                            setModuleParam(module, 'depth', 0.8);
+                            setModuleParam(module, 'decay', 0.8);
+                        });
+                        getModulesByType('vcf').forEach(module => {
+                            module.params.modes.focused = true;
+                            const modeItem = module.element?.querySelector('[data-mode="focused"]');
+                            if (modeItem) updateCheckboxDisplay(modeItem, true);
+                        });
+                        getModulesByType('vca').forEach(module => setModuleParam(module, 'level', 0.3));
+                        getModulesByType('lfo').forEach(module => setModuleParam(module, 'rate', 0.8));
+                    }
+                }
+            };
+
+            const scenarioConfig = scenarios[scenario];
+            if (!scenarioConfig) return;
+            history.pushState();
+            scenarioConfig.actions();
+            logPersonalityEvent(scenarioConfig.message);
+            schedulePersonalitySnapshot();
         }
 
         // ==================== INITIALIZATION ====================
@@ -3174,6 +3570,8 @@
                     const preset = btn.dataset.preset;
                     if (presets[preset]) {
                         presets[preset]();
+                        logPersonalityEvent(`Preset loaded: ${btn.textContent.trim()}.`);
+                        schedulePersonalitySnapshot();
                     }
                 });
             });
@@ -3182,6 +3580,7 @@
             document.getElementById('clear-btn').addEventListener('click', () => {
                 history.pushState();
                 clearAll();
+                logPersonalityEvent('Mind cleared.');
             });
 
             // Undo/Redo buttons
@@ -3210,7 +3609,27 @@
 
                 // Load basic preset by default
                 setTimeout(() => presets.basic(), 100);
+                logPersonalityEvent('Session started with Steady Companion.');
+                schedulePersonalitySnapshot();
             });
+
+            // Scenario buttons
+            document.querySelectorAll('[data-scenario]').forEach(button => {
+                button.addEventListener('click', () => {
+                    if (!isRunning) return;
+                    applyScenario(button.dataset.scenario);
+                });
+            });
+
+            // Session tools
+            const saveBtn = document.getElementById('save-session');
+            const loadBtn = document.getElementById('load-session');
+            const exportBtn = document.getElementById('export-session');
+            const importBtn = document.getElementById('import-session');
+            if (saveBtn) saveBtn.addEventListener('click', saveSession);
+            if (loadBtn) loadBtn.addEventListener('click', loadSession);
+            if (exportBtn) exportBtn.addEventListener('click', exportSession);
+            if (importBtn) importBtn.addEventListener('click', importSession);
 
             // Click outside modules to deselect
             document.getElementById('workspace').addEventListener('click', (e) => {
@@ -3270,6 +3689,8 @@
 
             // ==================== MODULE EDITOR ====================
             setupModuleEditor();
+            updatePersonalityHistory();
+            schedulePersonalitySnapshot();
         }
 
         // Global helper for adding controls to the editor (used by both setupModuleEditor and openModuleEditorForInstance)
@@ -3540,22 +3961,22 @@
             // Built-in modules
             const builtIn = {
                 sources: [
-                    { type: 'vco', icon: '&#9678;', name: 'Sensory Input' },
-                    { type: 'noise', icon: '~', name: 'Random Noise' },
-                    { type: 'memory', icon: '&#9744;', name: 'Base Knowledge' },
-                    { type: 'knowledge', icon: '&#9733;', name: 'Knowledge Source' }
+                    { type: 'vco', icon: '&#9678;', name: 'Sensory Input', desc: 'Raw player/world stimuli streams.' },
+                    { type: 'noise', icon: '~', name: 'Random Noise', desc: 'Unpredictable novelty & chaos.' },
+                    { type: 'memory', icon: '&#9744;', name: 'Base Knowledge', desc: 'Stored experiences & recall depth.' },
+                    { type: 'knowledge', icon: '&#9733;', name: 'Knowledge Source', desc: 'Lore or rules shaping behavior.' }
                 ],
                 processors: [
-                    { type: 'vcf', icon: '&#9671;', name: 'Attention Filter' },
-                    { type: 'mixer', icon: '&#9881;', name: 'Pattern Recognizer' },
-                    { type: 'vca', icon: '&#10038;', name: 'Spontaneity' }
+                    { type: 'vcf', icon: '&#9671;', name: 'Attention Filter', desc: 'Prioritize threats, focus, or openness.' },
+                    { type: 'mixer', icon: '&#9881;', name: 'Pattern Recognizer', desc: 'Blend signals into coherent intent.' },
+                    { type: 'vca', icon: '&#10038;', name: 'Spontaneity', desc: 'Agency & willingness to act.' }
                 ],
                 modulators: [
-                    { type: 'lfo', icon: '&#9829;', name: 'Emotional State' },
-                    { type: 'adsr', icon: '&#8599;', name: 'Reaction Shaper' }
+                    { type: 'lfo', icon: '&#9829;', name: 'Emotional State', desc: 'Mood drift and volatility.' },
+                    { type: 'adsr', icon: '&#8599;', name: 'Reaction Shaper', desc: 'Response timing & recovery.' }
                 ],
                 output: [
-                    { type: 'master', icon: '&#9654;', name: 'Behavioral Core' }
+                    { type: 'master', icon: '&#9654;', name: 'Behavioral Core', desc: 'Final personality + action output.' }
                 ]
             };
 
@@ -3567,6 +3988,7 @@
                     type: def.typeId,
                     icon: def.icon,
                     name: def.name,
+                    desc: 'Custom personality module.',
                     isCustom: true
                 });
             });
@@ -3617,7 +4039,8 @@
         function renderPaletteItem(item) {
             return `<div class="palette-item" data-type="${item.type}">
                 <span class="icon">${item.icon}</span>
-                ${item.name}
+                <span class="palette-label">${item.name}</span>
+                <span class="palette-desc">${item.desc || ''}</span>
             </div>`;
         }
 
@@ -3645,6 +4068,7 @@
                     };
 
                     renderModule(module);
+                    logPersonalityEvent(`${module.name} added to the mix.`);
 
                     if (type === 'master') {
                         masterOutput = module;

@@ -1,0 +1,3669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personality Synthesizer</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-module: #1c2128;
+            --bg-module-header: #262c36;
+            --accent-primary: #58a6ff;
+            --accent-secondary: #f78166;
+            --accent-tertiary: #7ee787;
+            --accent-output: #d2a8ff;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --port-audio: #58a6ff;
+            --port-control: #f78166;
+            --port-trigger: #d29922;
+            --cable-audio: #58a6ff;
+            --cable-control: #f78166;
+            --border-color: #30363d;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Header */
+        #header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 100;
+        }
+
+        #header h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            text-shadow: 0 0 10px rgba(0, 255, 170, 0.3);
+        }
+
+        #header-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .header-btn {
+            padding: 8px 16px;
+            background: var(--bg-module);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .header-btn:hover {
+            background: var(--bg-module-header);
+            border-color: var(--accent-primary);
+        }
+
+        .header-btn.active {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+        }
+
+        #power-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            padding: 0;
+        }
+
+        #power-btn.active {
+            box-shadow: 0 0 15px var(--accent-primary);
+        }
+
+        /* Main content */
+        #main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Workspace */
+        #workspace {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 50% 50%, rgba(26, 26, 58, 0.8) 0%, var(--bg-primary) 100%),
+                linear-gradient(90deg, rgba(51, 51, 102, 0.1) 1px, transparent 1px),
+                linear-gradient(rgba(51, 51, 102, 0.1) 1px, transparent 1px);
+            background-size: 100% 100%, 20px 20px, 20px 20px;
+        }
+
+        #cables {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        #modules {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: 300px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-section h3 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        /* Module Palette */
+        #module-palette {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .palette-category {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent-secondary);
+            margin-bottom: 4px;
+            padding-left: 4px;
+            font-weight: 600;
+        }
+
+        .palette-category.sources { color: var(--accent-tertiary); }
+        .palette-category.processors { color: var(--accent-primary); }
+        .palette-category.modulators { color: var(--accent-secondary); }
+        .palette-category.output { color: var(--accent-output); }
+
+        .palette-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .palette-item {
+            padding: 10px 6px;
+            background: var(--bg-module);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.75rem;
+        }
+
+        .palette-item:hover {
+            border-color: var(--accent-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 255, 170, 0.2);
+        }
+
+        .palette-item .icon {
+            font-size: 1.3rem;
+            margin-bottom: 2px;
+            display: block;
+        }
+
+        /* Oscilloscope */
+        #oscilloscope-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 180px;
+        }
+
+        #oscilloscope-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .scope-tab {
+            flex: 1;
+            padding: 6px;
+            background: var(--bg-module);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .scope-tab.active {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            border-color: var(--accent-primary);
+        }
+
+        #oscilloscope-canvas {
+            width: 100%;
+            flex: 1;
+            background: #050510;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Keyboard */
+        #keyboard-section {
+            padding: 15px;
+        }
+
+        #keyboard {
+            display: flex;
+            height: 80px;
+            position: relative;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .white-key {
+            flex: 1;
+            background: linear-gradient(180deg, #f0f0f0 0%, #d0d0d0 100%);
+            border: 1px solid #999;
+            border-radius: 0 0 4px 4px;
+            cursor: pointer;
+            transition: background 0.1s;
+            z-index: 1;
+        }
+
+        .white-key:hover {
+            background: linear-gradient(180deg, #fff 0%, #e0e0e0 100%);
+        }
+
+        .white-key.active {
+            background: linear-gradient(180deg, #ddd 0%, #bbb 100%);
+        }
+
+        .black-key {
+            position: absolute;
+            width: 60%;
+            height: 55%;
+            background: linear-gradient(180deg, #333 0%, #111 100%);
+            border-radius: 0 0 3px 3px;
+            cursor: pointer;
+            z-index: 2;
+            transform: translateX(-50%);
+        }
+
+        .black-key:hover {
+            background: linear-gradient(180deg, #444 0%, #222 100%);
+        }
+
+        .black-key.active {
+            background: linear-gradient(180deg, #222 0%, #000 100%);
+        }
+
+        /* Synth Module Styles */
+        .synth-module {
+            position: absolute;
+            background: var(--bg-module);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            min-width: 180px;
+            box-shadow: var(--shadow);
+            user-select: none;
+        }
+
+        .synth-module.selected {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 20px rgba(0, 255, 170, 0.3);
+        }
+
+        .module-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: var(--bg-module-header);
+            border-radius: 7px 7px 0 0;
+            cursor: move;
+        }
+
+        /* Module category colors */
+        .synth-module.source .module-header { border-left: 3px solid var(--accent-tertiary); }
+        .synth-module.processor .module-header { border-left: 3px solid var(--accent-primary); }
+        .synth-module.modulator .module-header { border-left: 3px solid var(--accent-secondary); }
+        .synth-module.destination .module-header { border-left: 3px solid var(--accent-output); }
+
+        .module-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+        }
+
+        .synth-module.source .module-title { color: var(--accent-tertiary); }
+        .synth-module.modulator .module-title { color: var(--accent-secondary); }
+        .synth-module.destination .module-title { color: var(--accent-output); }
+
+        .module-delete {
+            width: 20px;
+            height: 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .module-delete:hover {
+            background: var(--accent-secondary);
+            color: white;
+        }
+
+        .module-edit {
+            width: 20px;
+            height: 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.8rem;
+            line-height: 1;
+            border-radius: 3px;
+            transition: all 0.2s;
+            margin-right: 4px;
+        }
+
+        .module-edit:hover {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .module-header-buttons {
+            display: flex;
+            align-items: center;
+        }
+
+        .module-body {
+            padding: 12px;
+        }
+
+        .module-ports {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .port-column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .port {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .port.input {
+            flex-direction: row;
+        }
+
+        .port.output {
+            flex-direction: row-reverse;
+        }
+
+        .port-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid;
+            transition: all 0.2s;
+        }
+
+        .port-dot.audio {
+            border-color: var(--port-audio);
+            background: transparent;
+        }
+
+        .port-dot.control {
+            border-color: var(--port-control);
+            background: transparent;
+        }
+
+        .port-dot.trigger {
+            border-color: var(--port-trigger);
+            background: transparent;
+        }
+
+        .port:hover .port-dot {
+            transform: scale(1.3);
+        }
+
+        .port-dot.connected {
+            background: currentColor;
+        }
+
+        .port-dot.audio.connected {
+            background: var(--port-audio);
+        }
+
+        .port-dot.control.connected {
+            background: var(--port-control);
+        }
+
+        /* Module Controls */
+        .control-group {
+            margin-bottom: 10px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .control-group .value {
+            color: var(--accent-primary);
+            font-family: monospace;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            background: var(--bg-secondary);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(0, 255, 170, 0.5);
+        }
+
+        .control-group select {
+            width: 100%;
+            padding: 6px 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .control-group select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        /* ADSR Visualizer */
+        .adsr-display {
+            height: 50px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            margin-bottom: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .adsr-display canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Trigger Button */
+        .trigger-btn {
+            width: 100%;
+            padding: 10px;
+            background: var(--bg-secondary);
+            border: 2px solid var(--accent-secondary);
+            color: var(--accent-secondary);
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.1s;
+        }
+
+        .trigger-btn:hover {
+            background: rgba(255, 107, 157, 0.1);
+        }
+
+        .trigger-btn.active {
+            background: var(--accent-secondary);
+            color: white;
+        }
+
+        /* Start overlay */
+        #start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 26, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #start-overlay h2 {
+            font-size: 2rem;
+            color: var(--accent-primary);
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(0, 255, 170, 0.5);
+        }
+
+        #start-overlay p {
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+        }
+
+        #start-btn {
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            background: transparent;
+            border: 2px solid var(--accent-primary);
+            color: var(--accent-primary);
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #start-btn:hover {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            box-shadow: 0 0 30px rgba(0, 255, 170, 0.5);
+        }
+
+        /* Presets */
+        #presets-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .preset-btn {
+            padding: 8px 12px;
+            background: var(--bg-module);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            border-color: var(--accent-tertiary);
+            background: var(--bg-module-header);
+        }
+
+        /* Info text */
+        .info-text {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        /* Output results display */
+        .output-results {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .output-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 0.75rem;
+            color: var(--accent-output);
+        }
+
+        .output-icon {
+            font-size: 1rem;
+        }
+
+        .output-label {
+            color: var(--text-secondary);
+        }
+
+        /* Multi-select checkboxes */
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .checkbox-item:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .checkbox-item.checked {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .checkbox-item input {
+            display: none;
+        }
+
+        /* Highlight animation for duplicate prevention */
+        @keyframes highlight-pulse {
+            0% { box-shadow: 0 0 0 0 var(--accent-output); }
+            50% { box-shadow: 0 0 30px 10px var(--accent-output); }
+            100% { box-shadow: 0 0 0 0 var(--accent-output); }
+        }
+
+        .synth-module.highlight {
+            animation: highlight-pulse 0.5s ease-in-out;
+        }
+
+        /* Module Editor Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 26, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.hidden {
+            display: none;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-header h2 {
+            font-size: 1.2rem;
+            color: var(--accent-primary);
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--accent-secondary);
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .editor-section {
+            margin-bottom: 16px;
+        }
+
+        .editor-section label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .editor-section input[type="text"],
+        .editor-section input[type="number"],
+        .editor-section select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-module);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .editor-section input:focus,
+        .editor-section select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .editor-section h3 {
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .control-editor-item {
+            background: var(--bg-module);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .control-editor-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .control-editor-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-editor-item .remove-control {
+            background: var(--accent-secondary);
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            float: right;
+        }
+
+        #add-control-btn {
+            width: 100%;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header id="header">
+            <h1>Personality Synthesizer</h1>
+            <div id="header-controls">
+                <button id="undo-btn" class="header-btn" disabled title="Undo">&#8630;</button>
+                <button id="redo-btn" class="header-btn" disabled title="Redo">&#8631;</button>
+                <button id="clear-btn" class="header-btn">Clear Mind</button>
+                <button id="power-btn" class="header-btn">Active</button>
+            </div>
+        </header>
+
+        <main id="main">
+            <div id="workspace">
+                <canvas id="cables"></canvas>
+                <div id="modules"></div>
+            </div>
+
+            <aside id="sidebar">
+                <div class="sidebar-section">
+                    <h3>Add Module</h3>
+                    <div id="module-palette">
+                        <div class="palette-category sources">Sources</div>
+                        <div class="palette-row">
+                            <div class="palette-item" data-type="vco">
+                                <span class="icon">&#9678;</span>
+                                Sensory Input
+                            </div>
+                            <div class="palette-item" data-type="noise">
+                                <span class="icon">~</span>
+                                Random Noise
+                            </div>
+                        </div>
+                        <div class="palette-row">
+                            <div class="palette-item" data-type="memory">
+                                <span class="icon">&#9744;</span>
+                                Base Knowledge
+                            </div>
+                            <div class="palette-item" data-type="knowledge">
+                                <span class="icon">&#9733;</span>
+                                Knowledge Source
+                            </div>
+                        </div>
+
+                        <div class="palette-category processors">Processors</div>
+                        <div class="palette-row">
+                            <div class="palette-item" data-type="vcf">
+                                <span class="icon">&#9671;</span>
+                                Attention Filter
+                            </div>
+                            <div class="palette-item" data-type="mixer">
+                                <span class="icon">&#9881;</span>
+                                Pattern Recognizer
+                            </div>
+                        </div>
+                        <div class="palette-row">
+                            <div class="palette-item" data-type="vca">
+                                <span class="icon">&#10038;</span>
+                                Spontaneity
+                            </div>
+                        </div>
+
+                        <div class="palette-category modulators">Modulators</div>
+                        <div class="palette-row">
+                            <div class="palette-item" data-type="lfo">
+                                <span class="icon">&#9829;</span>
+                                Emotional State
+                            </div>
+                            <div class="palette-item" data-type="adsr">
+                                <span class="icon">&#8599;</span>
+                                Reaction Shaper
+                            </div>
+                        </div>
+
+                        <div class="palette-category output">Output</div>
+                        <div class="palette-row">
+                            <div class="palette-item" data-type="master">
+                                <span class="icon">&#9654;</span>
+                                Behavioral Core
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                            <button id="create-custom-btn" class="header-btn" style="width: 100%;">+ Create Custom Module</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section" id="oscilloscope-container">
+                    <h3>Neural Monitor</h3>
+                    <div id="oscilloscope-tabs">
+                        <button class="scope-tab active" data-mode="waveform">Waveform</button>
+                        <button class="scope-tab" data-mode="spectrum">Spectrum</button>
+                    </div>
+                    <canvas id="oscilloscope-canvas"></canvas>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3>Examples</h3>
+                    <div id="presets-list">
+                        <button class="preset-btn" data-preset="basic">Example 1</button>
+                        <button class="preset-btn" data-preset="bass">Example 2</button>
+                        <button class="preset-btn" data-preset="lead">Example 3</button>
+                        <button class="preset-btn" data-preset="pad">Example 4</button>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <div id="start-overlay">
+        <h2>Personality Synthesizer</h2>
+        <p>Click to initialize audio</p>
+        <button id="start-btn">Start</button>
+    </div>
+
+    <div id="module-editor-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Module Editor</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="editor-section">
+                    <label>Module Name</label>
+                    <input type="text" id="editor-name" placeholder="My Custom Module">
+                </div>
+                <div class="editor-section">
+                    <label>Category</label>
+                    <select id="editor-category">
+                        <option value="source">Source</option>
+                        <option value="processor">Processor</option>
+                        <option value="modulator">Modulator</option>
+                    </select>
+                </div>
+                <div class="editor-section">
+                    <label>Icon (HTML entity code)</label>
+                    <input type="text" id="editor-icon" placeholder="&#9733;" value="&#9733;">
+                </div>
+                <div class="editor-section">
+                    <label>Audio Type</label>
+                    <select id="editor-audio-type">
+                        <option value="oscillator">Oscillator (generates signal)</option>
+                        <option value="filter">Filter (shapes frequency)</option>
+                        <option value="gain">Gain (controls level)</option>
+                        <option value="delay">Delay (echo/memory)</option>
+                        <option value="noise">Noise (random signal)</option>
+                    </select>
+                </div>
+                <div class="editor-section">
+                    <h3>Controls</h3>
+                    <div id="editor-controls-list"></div>
+                    <button id="add-control-btn" class="header-btn">+ Add Control</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="editor-cancel" class="header-btn">Cancel</button>
+                <button id="editor-save" class="header-btn active">Save Module</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== AUDIO CONTEXT ====================
+        let audioContext = null;
+        let masterOutput = null;
+        let isRunning = false;
+
+        // ==================== STATE ====================
+        const state = {
+            modules: new Map(),
+            connections: [],
+            selectedModule: null,
+            pendingConnection: null,
+            moduleCounter: 0,
+            noteFrequencies: {}
+        };
+
+        // ==================== HISTORY (UNDO/REDO) ====================
+        const history = {
+            undoStack: [],
+            redoStack: [],
+            maxSize: 50,
+            isRestoring: false,
+            paramChangeTimer: null,
+
+            captureState() {
+                return {
+                    moduleCounter: state.moduleCounter,
+                    modules: Array.from(state.modules.values()).map(m => ({
+                        id: m.id,
+                        type: m.type,
+                        position: { ...m.position },
+                        params: JSON.parse(JSON.stringify(m.params))
+                    })),
+                    connections: state.connections.map(c => ({
+                        sourceModuleId: c.sourceModule.id,
+                        sourcePort: c.sourcePort,
+                        targetModuleId: c.targetModule.id,
+                        targetPort: c.targetPort
+                    }))
+                };
+            },
+
+            pushState() {
+                if (this.isRestoring) return;
+
+                const snapshot = this.captureState();
+                this.undoStack.push(snapshot);
+                this.redoStack = [];
+
+                if (this.undoStack.length > this.maxSize) {
+                    this.undoStack.shift();
+                }
+
+                this.updateButtons();
+            },
+
+            undo() {
+                if (this.undoStack.length === 0) return;
+
+                const currentState = this.captureState();
+                this.redoStack.push(currentState);
+
+                const previousState = this.undoStack.pop();
+                this.restoreState(previousState);
+                this.updateButtons();
+            },
+
+            redo() {
+                if (this.redoStack.length === 0) return;
+
+                const currentState = this.captureState();
+                this.undoStack.push(currentState);
+
+                const nextState = this.redoStack.pop();
+                this.restoreState(nextState);
+                this.updateButtons();
+            },
+
+            restoreState(snapshot) {
+                this.isRestoring = true;
+
+                // Clear without auto-recreating master
+                clearAll(true);
+
+                // Restore module counter
+                state.moduleCounter = snapshot.moduleCounter;
+
+                // Recreate modules
+                snapshot.modules.forEach(mData => {
+                    const module = createModuleWithId(mData.type, mData.id);
+                    if (!module) return;
+
+                    module.position = { ...mData.position };
+
+                    // Apply saved params
+                    Object.entries(mData.params).forEach(([key, val]) => {
+                        module.params[key] = val;
+                        if (typeof val !== 'object') {
+                            module.updateParam(key, val);
+                        }
+                    });
+
+                    renderModule(module);
+
+                    // Track master for oscilloscope
+                    if (module.type === 'master') {
+                        masterOutput = module;
+                        oscilloscope.setAnalyser(module.getAnalyser());
+                    }
+                });
+
+                // Recreate connections after modules exist
+                setTimeout(() => {
+                    snapshot.connections.forEach(cData => {
+                        const sourceModule = state.modules.get(cData.sourceModuleId);
+                        const targetModule = state.modules.get(cData.targetModuleId);
+                        if (sourceModule && targetModule) {
+                            createConnectionWithoutHistory(
+                                sourceModule, cData.sourcePort,
+                                targetModule, cData.targetPort
+                            );
+                        }
+                    });
+                    this.isRestoring = false;
+                }, 50);
+            },
+
+            updateButtons() {
+                const undoBtn = document.getElementById('undo-btn');
+                const redoBtn = document.getElementById('redo-btn');
+                if (undoBtn) undoBtn.disabled = this.undoStack.length === 0;
+                if (redoBtn) redoBtn.disabled = this.redoStack.length === 0;
+            },
+
+            // Debounced param change tracking
+            trackParamChange() {
+                if (this.isRestoring) return;
+
+                if (this.paramChangeTimer) {
+                    clearTimeout(this.paramChangeTimer);
+                } else {
+                    // First change in series - capture state
+                    this.pushState();
+                }
+
+                this.paramChangeTimer = setTimeout(() => {
+                    this.paramChangeTimer = null;
+                }, 500);
+            }
+        };
+
+        // Helper to create module with specific ID (for undo/redo)
+        function createModuleWithId(type, id) {
+            let module;
+            switch (type) {
+                case 'vco': module = new VCOModule(id); break;
+                case 'vcf': module = new VCFModule(id); break;
+                case 'vca': module = new VCAModule(id); break;
+                case 'adsr': module = new ADSRModule(id); break;
+                case 'lfo': module = new LFOModule(id); break;
+                case 'mixer': module = new MixerModule(id); break;
+                case 'master': module = new MasterOutputModule(id); break;
+                case 'noise': module = new NoiseModule(id); break;
+                case 'memory': module = new MemoryModule(id); break;
+                case 'knowledge': module = new KnowledgeModule(id); break;
+                default:
+                    // Check for custom module
+                    if (customModuleDefinitions[type]) {
+                        module = new CustomModule(id, customModuleDefinitions[type]);
+                    } else {
+                        return null;
+                    }
+            }
+
+            if (audioContext) {
+                module.createAudioNodes();
+            }
+
+            state.modules.set(id, module);
+            return module;
+        }
+
+        // Note frequencies for keyboard
+        const noteFreqs = {
+            'C4': 261.63, 'C#4': 277.18, 'D4': 293.66, 'D#4': 311.13,
+            'E4': 329.63, 'F4': 349.23, 'F#4': 369.99, 'G4': 392.00,
+            'G#4': 415.30, 'A4': 440.00, 'A#4': 466.16, 'B4': 493.88, 'C5': 523.25
+        };
+
+        // Key mappings
+        const keyMap = {
+            'a': 'C4', 'w': 'C#4', 's': 'D4', 'e': 'D#4', 'd': 'E4',
+            'f': 'F4', 't': 'F#4', 'g': 'G4', 'y': 'G#4', 'h': 'A4',
+            'u': 'A#4', 'j': 'B4', 'k': 'C5'
+        };
+
+        // ==================== BASE MODULE CLASS ====================
+        class SynthModule {
+            constructor(id, name, type, category) {
+                this.id = id;
+                this.name = name;
+                this.type = type;
+                this.category = category || 'processor';
+                this.inputs = new Map();
+                this.outputs = new Map();
+                this.params = {};
+                this.element = null;
+                this.position = { x: 50, y: 50 };
+                this.audioNodes = {};
+            }
+
+            createAudioNodes() {}
+            createUI() {}
+
+            updateParam(name, value) {
+                this.params[name] = value;
+            }
+
+            getPortPosition(portName, isOutput) {
+                const portEl = this.element.querySelector(
+                    `.port.${isOutput ? 'output' : 'input'}[data-port="${portName}"] .port-dot`
+                );
+                if (!portEl) return null;
+
+                const rect = portEl.getBoundingClientRect();
+                const workspace = document.getElementById('workspace').getBoundingClientRect();
+
+                return {
+                    x: rect.left + rect.width / 2 - workspace.left,
+                    y: rect.top + rect.height / 2 - workspace.top
+                };
+            }
+
+            dispose() {
+                Object.values(this.audioNodes).forEach(node => {
+                    if (node && node.disconnect) {
+                        try { node.disconnect(); } catch (e) {}
+                    }
+                    if (node && node.stop) {
+                        try { node.stop(); } catch (e) {}
+                    }
+                });
+                if (this.element) {
+                    this.element.remove();
+                }
+            }
+        }
+
+        // ==================== SENSORY INPUT MODULE (was VCO) ====================
+        class VCOModule extends SynthModule {
+            constructor(id) {
+                super(id, 'Sensory Input', 'vco', 'source');
+                this.params = {
+                    channels: { visual: true, auditory: false, tactile: false, internal: false },
+                    frequency: 440,
+                    detune: 0
+                };
+            }
+
+            createAudioNodes() {
+                this.audioNodes.oscillator = audioContext.createOscillator();
+                this.audioNodes.output = audioContext.createGain();
+                this.audioNodes.output.gain.value = 1;
+
+                this.audioNodes.oscillator.type = 'sawtooth';
+                this.audioNodes.oscillator.frequency.value = this.params.frequency;
+                this.audioNodes.oscillator.detune.value = this.params.detune;
+
+                this.audioNodes.oscillator.connect(this.audioNodes.output);
+                this.audioNodes.oscillator.start();
+
+                this.outputs.set('audio', this.audioNodes.output);
+                this.inputs.set('frequency', this.audioNodes.oscillator.frequency);
+                this.inputs.set('detune', this.audioNodes.oscillator.detune);
+            }
+
+            updateParam(name, value) {
+                super.updateParam(name, value);
+                if (name === 'frequency' && this.audioNodes.oscillator) {
+                    this.audioNodes.oscillator.frequency.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                } else if (name === 'detune' && this.audioNodes.oscillator) {
+                    this.audioNodes.oscillator.detune.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                }
+            }
+
+            toggleChannel(channel) {
+                this.params.channels[channel] = !this.params.channels[channel];
+            }
+
+            setFrequency(freq) {
+                if (this.audioNodes.oscillator) {
+                    this.audioNodes.oscillator.frequency.setTargetAtTime(freq, audioContext.currentTime, 0.01);
+                }
+            }
+
+            createUI() {
+                return `
+                    <div class="module-ports">
+                        <div class="port-column inputs">
+                            <div class="port input" data-port="frequency">
+                                <div class="port-dot control"></div>
+                                <span>MOD</span>
+                            </div>
+                        </div>
+                        <div class="port-column outputs">
+                            <div class="port output" data-port="audio">
+                                <span>STREAM</span>
+                                <div class="port-dot audio"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Channels</label>
+                        <div class="checkbox-group" data-param="channels">
+                            <label class="checkbox-item ${this.params.channels.visual ? 'checked' : ''}" data-channel="visual">
+                                <input type="checkbox" ${this.params.channels.visual ? 'checked' : ''}>Visual
+                            </label>
+                            <label class="checkbox-item ${this.params.channels.auditory ? 'checked' : ''}" data-channel="auditory">
+                                <input type="checkbox" ${this.params.channels.auditory ? 'checked' : ''}>Auditory
+                            </label>
+                            <label class="checkbox-item ${this.params.channels.tactile ? 'checked' : ''}" data-channel="tactile">
+                                <input type="checkbox" ${this.params.channels.tactile ? 'checked' : ''}>Tactile
+                            </label>
+                            <label class="checkbox-item ${this.params.channels.internal ? 'checked' : ''}" data-channel="internal">
+                                <input type="checkbox" ${this.params.channels.internal ? 'checked' : ''}>Internal
+                            </label>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Intensity <span class="value">${Math.round((this.params.frequency - 20) / 19.8)}</span>%</label>
+                        <input type="range" data-param="frequency" min="20" max="2000" value="${this.params.frequency}" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>Noise Floor <span class="value">${this.params.detune}</span></label>
+                        <input type="range" data-param="detune" min="-100" max="100" value="${this.params.detune}" step="1">
+                    </div>
+                `;
+            }
+        }
+
+        // ==================== RANDOM NOISE MODULE (Noise Generator) ====================
+        class NoiseModule extends SynthModule {
+            constructor(id) {
+                super(id, 'Random Noise', 'noise', 'source');
+                this.params = {
+                    type: 'white',
+                    level: 0.5
+                };
+                this.noiseBuffer = null;
+            }
+
+            createAudioNodes() {
+                // Create noise buffer
+                const bufferSize = 2 * audioContext.sampleRate;
+                this.noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                const output = this.noiseBuffer.getChannelData(0);
+
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+
+                this.audioNodes.source = audioContext.createBufferSource();
+                this.audioNodes.source.buffer = this.noiseBuffer;
+                this.audioNodes.source.loop = true;
+
+                this.audioNodes.filter = audioContext.createBiquadFilter();
+                this.audioNodes.gain = audioContext.createGain();
+                this.audioNodes.gain.gain.value = this.params.level;
+
+                this.updateNoiseType(this.params.type);
+
+                this.audioNodes.source.connect(this.audioNodes.filter);
+                this.audioNodes.filter.connect(this.audioNodes.gain);
+                this.audioNodes.source.start();
+
+                this.outputs.set('audio', this.audioNodes.gain);
+            }
+
+            updateNoiseType(type) {
+                if (!this.audioNodes.filter) return;
+
+                switch(type) {
+                    case 'white':
+                        this.audioNodes.filter.type = 'allpass';
+                        break;
+                    case 'pink':
+                        this.audioNodes.filter.type = 'lowpass';
+                        this.audioNodes.filter.frequency.value = 1000;
+                        break;
+                    case 'brown':
+                        this.audioNodes.filter.type = 'lowpass';
+                        this.audioNodes.filter.frequency.value = 200;
+                        break;
+                }
+            }
+
+            updateParam(name, value) {
+                super.updateParam(name, value);
+                if (name === 'type') {
+                    this.updateNoiseType(value);
+                } else if (name === 'level' && this.audioNodes.gain) {
+                    this.audioNodes.gain.gain.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                }
+            }
+
+            createUI() {
+                return `
+                    <div class="module-ports">
+                        <div class="port-column inputs"></div>
+                        <div class="port-column outputs">
+                            <div class="port output" data-port="audio">
+                                <span>CHAOS</span>
+                                <div class="port-dot audio"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Type</label>
+                        <select data-param="type">
+                            <option value="white" selected>White (Pure Random)</option>
+                            <option value="pink">Pink (Natural)</option>
+                            <option value="brown">Brown (Slow Drift)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Level <span class="value">${(this.params.level * 100).toFixed(0)}</span>%</label>
+                        <input type="range" data-param="level" min="0" max="1" value="${this.params.level}" step="0.01">
+                    </div>
+                `;
+            }
+        }
+
+        // ==================== BASE KNOWLEDGE MODULE (Delay/Feedback) ====================
+        class MemoryModule extends SynthModule {
+            constructor(id) {
+                super(id, 'Base Knowledge', 'memory', 'source');
+                this.params = {
+                    depth: 0.5,
+                    clarity: 0.4,
+                    decay: 0.5
+                };
+            }
+
+            createAudioNodes() {
+                this.audioNodes.input = audioContext.createGain();
+                this.audioNodes.delay = audioContext.createDelay(5.0);
+                this.audioNodes.feedback = audioContext.createGain();
+                this.audioNodes.wet = audioContext.createGain();
+                this.audioNodes.dry = audioContext.createGain();
+                this.audioNodes.output = audioContext.createGain();
+
+                this.audioNodes.delay.delayTime.value = this.params.depth * 2;
+                this.audioNodes.feedback.gain.value = this.params.clarity;
+                this.audioNodes.wet.gain.value = this.params.decay;
+                this.audioNodes.dry.gain.value = 1 - this.params.decay;
+
+                // Dry path
+                this.audioNodes.input.connect(this.audioNodes.dry);
+                this.audioNodes.dry.connect(this.audioNodes.output);
+
+                // Wet path with feedback
+                this.audioNodes.input.connect(this.audioNodes.delay);
+                this.audioNodes.delay.connect(this.audioNodes.feedback);
+                this.audioNodes.feedback.connect(this.audioNodes.delay);
+                this.audioNodes.delay.connect(this.audioNodes.wet);
+                this.audioNodes.wet.connect(this.audioNodes.output);
+
+                this.inputs.set('audio', this.audioNodes.input);
+                this.outputs.set('audio', this.audioNodes.output);
+            }
+
+            updateParam(name, value) {
+                super.updateParam(name, value);
+                if (name === 'depth' && this.audioNodes.delay) {
+                    this.audioNodes.delay.delayTime.setTargetAtTime(value * 2, audioContext.currentTime, 0.01);
+                } else if (name === 'clarity' && this.audioNodes.feedback) {
+                    this.audioNodes.feedback.gain.setTargetAtTime(Math.min(value, 0.95), audioContext.currentTime, 0.01);
+                } else if (name === 'decay') {
+                    if (this.audioNodes.wet) {
+                        this.audioNodes.wet.gain.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                    }
+                    if (this.audioNodes.dry) {
+                        this.audioNodes.dry.gain.setTargetAtTime(1 - value, audioContext.currentTime, 0.01);
+                    }
+                }
+            }
+
+            createUI() {
+                return `
+                    <div class="module-ports">
+                        <div class="port-column inputs">
+                            <div class="port input" data-port="audio">
+                                <div class="port-dot audio"></div>
+                                <span>EXPERIENCE</span>
+                            </div>
+                        </div>
+                        <div class="port-column outputs">
+                            <div class="port output" data-port="audio">
+                                <span>RECALL</span>
+                                <div class="port-dot audio"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Depth <span class="value">${(this.params.depth * 100).toFixed(0)}</span>%</label>
+                        <input type="range" data-param="depth" min="0.01" max="1" value="${this.params.depth}" step="0.01">
+                    </div>
+                    <div class="control-group">
+                        <label>Clarity <span class="value">${(this.params.clarity * 100).toFixed(0)}</span>%</label>
+                        <input type="range" data-param="clarity" min="0" max="0.95" value="${this.params.clarity}" step="0.01">
+                    </div>
+                    <div class="control-group">
+                        <label>Decay <span class="value">${(this.params.decay * 100).toFixed(0)}</span>%</label>
+                        <input type="range" data-param="decay" min="0" max="1" value="${this.params.decay}" step="0.01">
+                    </div>
+                `;
+            }
+        }
+
+        // ==================== KNOWLEDGE SOURCE MODULE ====================
+        class KnowledgeModule extends SynthModule {
+            constructor(id) {
+                super(id, 'Knowledge Source', 'knowledge', 'source');
+                this.params = {
+                    type: 'world',
+                    intensity: 0.7
+                };
+            }
+
+            createAudioNodes() {
+                // Creates a shaped noise source representing knowledge data
+                const bufferSize = 2 * audioContext.sampleRate;
+                this.noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                const output = this.noiseBuffer.getChannelData(0);
+
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+
+                this.audioNodes.source = audioContext.createBufferSource();
+                this.audioNodes.source.buffer = this.noiseBuffer;
+                this.audioNodes.source.loop = true;
+
+                this.audioNodes.filter = audioContext.createBiquadFilter();
+                this.audioNodes.filter.type = 'bandpass';
+                this.audioNodes.filter.frequency.value = 500;
+                this.audioNodes.filter.Q.value = 2;
+
+                this.audioNodes.gain = audioContext.createGain();
+                this.audioNodes.gain.gain.value = this.params.intensity;
+
+                this.audioNodes.source.connect(this.audioNodes.filter);
+                this.audioNodes.filter.connect(this.audioNodes.gain);
+                this.audioNodes.source.start();
+
+                this.outputs.set('audio', this.audioNodes.gain);
+            }
+
+            updateParam(name, value) {
+                super.updateParam(name, value);
+                if (name === 'type' && this.audioNodes.filter) {
+                    // Different knowledge types have different frequency characteristics
+                    const freqMap = { world: 500, enemy: 800, crafting: 300, lore: 200 };
+                    this.audioNodes.filter.frequency.setTargetAtTime(freqMap[value] || 500, audioContext.currentTime, 0.01);
+                } else if (name === 'intensity' && this.audioNodes.gain) {
+                    this.audioNodes.gain.gain.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                }
+            }
+
+            createUI() {
+                return `
+                    <div class="module-ports">
+                        <div class="port-column inputs"></div>
+                        <div class="port-column outputs">
+                            <div class="port output" data-port="audio">
+                                <span>DATA</span>
+                                <div class="port-dot audio"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Knowledge Type</label>
+                        <select data-param="type">
+                            <option value="world" selected>World Knowledge</option>
+                            <option value="enemy">Enemy Faction</option>
+                            <option value="crafting">Crafting</option>
+                            <option value="lore">Lore & History</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Intensity <span class="value">${(this.params.intensity * 100).toFixed(0)}</span>%</label>
+                        <input type="range" data-param="intensity" min="0" max="1" value="${this.params.intensity}" step="0.01">
+                    </div>
+                `;
+            }
+        }
+
+        // ==================== ATTENTION FILTER MODULE (was VCF) ====================
+        class VCFModule extends SynthModule {
+            constructor(id) {
+                super(id, 'Attention Filter', 'vcf', 'processor');
+                this.params = {
+                    modes: { relaxed: true, vigilant: false, focused: false, open: false },
+                    frequency: 2000,
+                    resonance: 1
+                };
+            }
+
+            createAudioNodes() {
+                this.audioNodes.filter = audioContext.createBiquadFilter();
+                this.audioNodes.filter.type = 'lowpass';
+                this.audioNodes.filter.frequency.value = this.params.frequency;
+                this.audioNodes.filter.Q.value = this.params.resonance;
+
+                this.outputs.set('audio', this.audioNodes.filter);
+                this.inputs.set('audio', this.audioNodes.filter);
+                this.inputs.set('frequency', this.audioNodes.filter.frequency);
+            }
+
+            updateParam(name, value) {
+                super.updateParam(name, value);
+                if (name === 'frequency' && this.audioNodes.filter) {
+                    this.audioNodes.filter.frequency.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                } else if (name === 'resonance' && this.audioNodes.filter) {
+                    this.audioNodes.filter.Q.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                }
+            }
+
+            toggleMode(mode) {
+                this.params.modes[mode] = !this.params.modes[mode];
+            }
+
+            createUI() {
+                return `
+                    <div class="module-ports">
+                        <div class="port-column inputs">
+                            <div class="port input" data-port="audio">
+                                <div class="port-dot audio"></div>
+                                <span>IN</span>
+                            </div>
+                            <div class="port input" data-port="frequency">
+                                <div class="port-dot control"></div>
+                                <span>MOD</span>
+                            </div>
+                        </div>
+                        <div class="port-column outputs">
+                            <div class="port output" data-port="audio">
+                                <span>FOCUS</span>
+                                <div class="port-dot audio"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Mode</label>
+                        <div class="checkbox-group" data-param="modes">
+                            <label class="checkbox-item ${this.params.modes.relaxed ? 'checked' : ''}" data-mode="relaxed">
+                                <input type="checkbox" ${this.params.modes.relaxed ? 'checked' : ''}>Relaxed
+                            </label>
+                            <label class="checkbox-item ${this.params.modes.vigilant ? 'checked' : ''}" data-mode="vigilant">
+                                <input type="checkbox" ${this.params.modes.vigilant ? 'checked' : ''}>Vigilant
+                            </label>
+                            <label class="checkbox-item ${this.params.modes.focused ? 'checked' : ''}" data-mode="focused">
+                                <input type="checkbox" ${this.params.modes.focused ? 'checked' : ''}>Focused
+                            </label>
+                            <label class="checkbox-item ${this.params.modes.open ? 'checked' : ''}" data-mode="open">
+                                <input type="checkbox" ${this.params.modes.open ? 'checked' : ''}>Open
+                            </label>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Threshold <span class="value">${Math.round(this.params.frequency / 200)}</span></label>
+                        <input type="range" data-param="frequency" min="20" max="20000" value="${this.params.frequency}" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>Resonance <span class="value">${this.params.resonance.toFixed(1)}</span></label>
+                        <input type="range" data-param="resonance" min="0.1" max="30" value="${this.params.resonance}" step="0.1">
+                    </div>
+                `;
+            }
+        }
+
+        // ==================== SPONTANEITY MODULE (was VCA) ====================
+        class VCAModule extends SynthModule {
+            constructor(id) {
+                super(id, 'Spontaneity', 'vca', 'processor');
+                this.params = {
+                    level: 0.5
+                };
+            }
+
+            createAudioNodes() {
+                this.audioNodes.gain = audioContext.createGain();
+                this.audioNodes.gain.gain.value = this.params.level;
+
+                this.outputs.set('audio', this.audioNodes.gain);
+                this.inputs.set('audio', this.audioNodes.gain);
+                this.inputs.set('gain', this.audioNodes.gain.gain);
+            }
+
+            updateParam(name, value) {
+                super.updateParam(name, value);
+                if (name === 'level' && this.audioNodes.gain) {
+                    this.audioNodes.gain.gain.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                }
+            }
+
+            createUI() {
+                return `
+                    <div class="module-ports">
+                        <div class="port-column inputs">
+                            <div class="port input" data-port="audio">
+                                <div class="port-dot audio"></div>
+                                <span>IN</span>
+                            </div>
+                            <div class="port input" data-port="gain">
+                                <div class="port-dot control"></div>
+                                <span>MOD</span>
+                            </div>
+                        </div>
+                        <div class="port-column outputs">
+                            <div class="port output" data-port="audio">
+                                <span>SELF</span>
+                                <div class="port-dot audio"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Agency <span class="value">${(this.params.level * 100).toFixed(0)}</span>%</label>
+                        <input type="range" data-param="level" min="0" max="1" value="${this.params.level}" step="0.01">
+                    </div>
+                `;
+            }
+        }
+
+        // ==================== REACTION SHAPER MODULE (was ADSR) ====================
+        class ADSRModule extends SynthModule {
+            constructor(id) {
+                super(id, 'Reaction Shaper', 'adsr', 'modulator');
+                this.params = {
+                    attack: 0.01,
+                    decay: 0.2,
+                    sustain: 0.5,
+                    release: 0.5
+                };
+                this.triggered = false;
+            }
+
+            createAudioNodes() {
+                this.audioNodes.envelope = audioContext.createGain();
+                this.audioNodes.envelope.gain.value = 0;
+
+                this.outputs.set('envelope', this.audioNodes.envelope);
+                this.inputs.set('input', this.audioNodes.envelope);
+            }
+
+            trigger() {
+                if (!this.audioNodes.envelope) return;
+
+                const now = audioContext.currentTime;
+                const gain = this.audioNodes.envelope.gain;
+
+                gain.cancelScheduledValues(now);
+                gain.setValueAtTime(0, now);
+                gain.linearRampToValueAtTime(1, now + this.params.attack);
+                gain.linearRampToValueAtTime(this.params.sustain, now + this.params.attack + this.params.decay);
+
+                this.triggered = true;
+                this.updateADSRDisplay();
+            }
+
+            release() {
+                if (!this.audioNodes.envelope || !this.triggered) return;
+
+                const now = audioContext.currentTime;
+                const gain = this.audioNodes.envelope.gain;
+
+                gain.cancelScheduledValues(now);
+                gain.setValueAtTime(gain.value, now);
+                gain.linearRampToValueAtTime(0, now + this.params.release);
+
+                this.triggered = false;
+            }
+
+            updateADSRDisplay() {
+                const canvas = this.element?.querySelector('.adsr-display canvas');
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+                const w = canvas.width;
+                const h = canvas.height;
+
+                ctx.clearRect(0, 0, w, h);
+                ctx.strokeStyle = '#f78166';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+
+                const totalTime = this.params.attack + this.params.decay + 0.5 + this.params.release;
+                const scale = w / totalTime;
+
+                ctx.moveTo(0, h);
+                ctx.lineTo(this.params.attack * scale, h * 0.1);
+                ctx.lineTo((this.params.attack + this.params.decay) * scale, h * (1 - this.params.sustain * 0.9));
+                ctx.lineTo((this.params.attack + this.params.decay + 0.5) * scale, h * (1 - this.params.sustain * 0.9));
+                ctx.lineTo(w, h);
+
+                ctx.stroke();
+            }
+
+            updateParam(name, value) {
+                super.updateParam(name, value);
+                this.updateADSRDisplay();
+            }
+
+            createUI() {
+                return `
+                    <div class="module-ports">
+                        <div class="port-column inputs">
+                            <div class="port input" data-port="input">
+                                <div class="port-dot audio"></div>
+                                <span>TRIGGER</span>
+                            </div>
+                        </div>
+                        <div class="port-column outputs">
+                            <div class="port output" data-port="envelope">
+                                <span>RESPONSE</span>
+                                <div class="port-dot audio"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="adsr-display">
+                        <canvas width="150" height="50"></canvas>
+                    </div>
+                    <div class="control-group">
+                        <label>Onset <span class="value">${this.params.attack.toFixed(2)}</span>s</label>
+                        <input type="range" data-param="attack" min="0.001" max="2" value="${this.params.attack}" step="0.001">
+                    </div>
+                    <div class="control-group">
+                        <label>Peak Decay <span class="value">${this.params.decay.toFixed(2)}</span>s</label>
+                        <input type="range" data-param="decay" min="0.001" max="2" value="${this.params.decay}" step="0.001">
+                    </div>
+                    <div class="control-group">
+                        <label>Baseline <span class="value">${(this.params.sustain * 100).toFixed(0)}</span>%</label>
+                        <input type="range" data-param="sustain" min="0" max="1" value="${this.params.sustain}" step="0.01">
+                    </div>
+                    <div class="control-group">
+                        <label>Recovery <span class="value">${this.params.release.toFixed(2)}</span>s</label>
+                        <input type="range" data-param="release" min="0.001" max="3" value="${this.params.release}" step="0.001">
+                    </div>
+                    <button class="trigger-btn" data-action="trigger">STIMULUS</button>
+                `;
+            }
+        }
+
+        // ==================== EMOTIONAL STATE MODULE (was LFO) ====================
+        class LFOModule extends SynthModule {
+            constructor(id) {
+                super(id, 'Emotional State', 'lfo', 'modulator');
+                this.params = {
+                    waveform: 'sine',
+                    rate: 2,
+                    depth: 100
+                };
+            }
+
+            createAudioNodes() {
+                this.audioNodes.oscillator = audioContext.createOscillator();
+                this.audioNodes.depth = audioContext.createGain();
+
+                this.audioNodes.oscillator.type = this.params.waveform;
+                this.audioNodes.oscillator.frequency.value = this.params.rate;
+                this.audioNodes.depth.gain.value = this.params.depth;
+
+                this.audioNodes.oscillator.connect(this.audioNodes.depth);
+                this.audioNodes.oscillator.start();
+
+                this.outputs.set('modulation', this.audioNodes.depth);
+            }
+
+            updateParam(name, value) {
+                super.updateParam(name, value);
+                if (name === 'waveform' && this.audioNodes.oscillator) {
+                    this.audioNodes.oscillator.type = value;
+                } else if (name === 'rate' && this.audioNodes.oscillator) {
+                    this.audioNodes.oscillator.frequency.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                } else if (name === 'depth' && this.audioNodes.depth) {
+                    this.audioNodes.depth.gain.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                }
+            }
+
+            createUI() {
+                return `
+                    <div class="module-ports">
+                        <div class="port-column inputs"></div>
+                        <div class="port-column outputs">
+                            <div class="port output" data-port="modulation">
+                                <span>MOOD</span>
+                                <div class="port-dot control"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Pattern</label>
+                        <select data-param="waveform">
+                            <option value="sine" selected>Stable</option>
+                            <option value="square">Anxious</option>
+                            <option value="sawtooth">Melancholic</option>
+                            <option value="triangle">Manic</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Cycle <span class="value">${this.params.rate.toFixed(1)}</span></label>
+                        <input type="range" data-param="rate" min="0.1" max="20" value="${this.params.rate}" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <label>Intensity <span class="value">${this.params.depth}</span></label>
+                        <input type="range" data-param="depth" min="0" max="1000" value="${this.params.depth}" step="1">
+                    </div>
+                `;
+            }
+        }
+
+        // ==================== PATTERN RECOGNIZER MODULE (was Mixer) ====================
+        class MixerModule extends SynthModule {
+            constructor(id) {
+                super(id, 'Pattern Recognizer', 'mixer', 'processor');
+                this.params = {
+                    ch1: 0.8,
+                    ch2: 0.8,
+                    ch3: 0.8,
+                    ch4: 0.8
+                };
+            }
+
+            createAudioNodes() {
+                this.audioNodes.ch1 = audioContext.createGain();
+                this.audioNodes.ch2 = audioContext.createGain();
+                this.audioNodes.ch3 = audioContext.createGain();
+                this.audioNodes.ch4 = audioContext.createGain();
+                this.audioNodes.output = audioContext.createGain();
+
+                this.audioNodes.ch1.gain.value = this.params.ch1;
+                this.audioNodes.ch2.gain.value = this.params.ch2;
+                this.audioNodes.ch3.gain.value = this.params.ch3;
+                this.audioNodes.ch4.gain.value = this.params.ch4;
+
+                this.audioNodes.ch1.connect(this.audioNodes.output);
+                this.audioNodes.ch2.connect(this.audioNodes.output);
+                this.audioNodes.ch3.connect(this.audioNodes.output);
+                this.audioNodes.ch4.connect(this.audioNodes.output);
+
+                this.outputs.set('audio', this.audioNodes.output);
+                this.inputs.set('ch1', this.audioNodes.ch1);
+                this.inputs.set('ch2', this.audioNodes.ch2);
+                this.inputs.set('ch3', this.audioNodes.ch3);
+                this.inputs.set('ch4', this.audioNodes.ch4);
+            }
+
+            updateParam(name, value) {
+                super.updateParam(name, value);
+                if (this.audioNodes[name]) {
+                    this.audioNodes[name].gain.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                }
+            }
+
+            createUI() {
+                return `
+                    <div class="module-ports">
+                        <div class="port-column inputs">
+                            <div class="port input" data-port="ch1">
+                                <div class="port-dot audio"></div>
+                                <span>S1</span>
+                            </div>
+                            <div class="port input" data-port="ch2">
+                                <div class="port-dot audio"></div>
+                                <span>S2</span>
+                            </div>
+                            <div class="port input" data-port="ch3">
+                                <div class="port-dot audio"></div>
+                                <span>S3</span>
+                            </div>
+                            <div class="port input" data-port="ch4">
+                                <div class="port-dot audio"></div>
+                                <span>S4</span>
+                            </div>
+                        </div>
+                        <div class="port-column outputs">
+                            <div class="port output" data-port="audio">
+                                <span>UNIFIED</span>
+                                <div class="port-dot audio"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label>Stream 1 <span class="value">${(this.params.ch1 * 100).toFixed(0)}</span>%</label>
+                        <input type="range" data-param="ch1" min="0" max="1" value="${this.params.ch1}" step="0.01">
+                    </div>
+                    <div class="control-group">
+                        <label>Stream 2 <span class="value">${(this.params.ch2 * 100).toFixed(0)}</span>%</label>
+                        <input type="range" data-param="ch2" min="0" max="1" value="${this.params.ch2}" step="0.01">
+                    </div>
+                    <div class="control-group">
+                        <label>Stream 3 <span class="value">${(this.params.ch3 * 100).toFixed(0)}</span>%</label>
+                        <input type="range" data-param="ch3" min="0" max="1" value="${this.params.ch3}" step="0.01">
+                    </div>
+                    <div class="control-group">
+                        <label>Stream 4 <span class="value">${(this.params.ch4 * 100).toFixed(0)}</span>%</label>
+                        <input type="range" data-param="ch4" min="0" max="1" value="${this.params.ch4}" step="0.01">
+                    </div>
+                `;
+            }
+        }
+
+        // ==================== BEHAVIORAL CORE MODULE (was Master) ====================
+        class MasterOutputModule extends SynthModule {
+            constructor(id) {
+                super(id, 'Behavioral Core', 'master', 'destination');
+                this.params = {
+                    volume: 0.7
+                };
+            }
+
+            createAudioNodes() {
+                this.audioNodes.input = audioContext.createGain();
+                this.audioNodes.limiter = audioContext.createDynamicsCompressor();
+                this.audioNodes.analyser = audioContext.createAnalyser();
+                this.audioNodes.masterGain = audioContext.createGain();
+
+                this.audioNodes.limiter.threshold.value = -3;
+                this.audioNodes.limiter.knee.value = 6;
+                this.audioNodes.limiter.ratio.value = 12;
+                this.audioNodes.limiter.attack.value = 0.003;
+                this.audioNodes.limiter.release.value = 0.25;
+
+                this.audioNodes.analyser.fftSize = 2048;
+                this.audioNodes.masterGain.gain.value = this.params.volume;
+
+                this.audioNodes.input.connect(this.audioNodes.limiter);
+                this.audioNodes.limiter.connect(this.audioNodes.analyser);
+                this.audioNodes.analyser.connect(this.audioNodes.masterGain);
+                this.audioNodes.masterGain.connect(audioContext.destination);
+
+                this.inputs.set('audio', this.audioNodes.input);
+            }
+
+            updateParam(name, value) {
+                super.updateParam(name, value);
+                if (name === 'volume' && this.audioNodes.masterGain) {
+                    this.audioNodes.masterGain.gain.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                }
+            }
+
+            getAnalyser() {
+                return this.audioNodes.analyser;
+            }
+
+            createUI() {
+                return `
+                    <div class="module-ports">
+                        <div class="port-column inputs">
+                            <div class="port input" data-port="audio">
+                                <div class="port-dot audio"></div>
+                                <span>IN</span>
+                            </div>
+                        </div>
+                        <div class="port-column outputs"></div>
+                    </div>
+                    <div class="control-group">
+                        <label>Expression <span class="value">${(this.params.volume * 100).toFixed(0)}</span>%</label>
+                        <input type="range" data-param="volume" min="0" max="1" value="${this.params.volume}" step="0.01">
+                    </div>
+                    <div class="output-results">
+                        <div class="output-item">
+                            <span class="output-icon">&#9654;</span>
+                            <span class="output-label">Voice & Personality</span>
+                        </div>
+                        <div class="output-item">
+                            <span class="output-icon">&#9654;</span>
+                            <span class="output-label">Autonomous Behavior</span>
+                        </div>
+                        <div class="output-item">
+                            <span class="output-icon">&#9654;</span>
+                            <span class="output-label">Command Interface</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // ==================== CUSTOM MODULE DEFINITIONS ====================
+        let customModuleDefinitions = {};
+
+        // Load from localStorage on init
+        function loadCustomModules() {
+            try {
+                const saved = localStorage.getItem('customModules');
+                if (saved) {
+                    customModuleDefinitions = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.warn('Failed to load custom modules:', e);
+            }
+        }
+
+        function saveCustomModules() {
+            try {
+                localStorage.setItem('customModules', JSON.stringify(customModuleDefinitions));
+            } catch (e) {
+                console.warn('Failed to save custom modules:', e);
+            }
+        }
+
+        // ==================== CUSTOM MODULE CLASS ====================
+        class CustomModule extends SynthModule {
+            constructor(id, definition) {
+                super(id, definition.name, definition.typeId, definition.category);
+                this.definition = definition;
+
+                // Initialize params from definition defaults
+                this.params = {};
+                definition.controls.forEach(ctrl => {
+                    this.params[ctrl.id] = ctrl.default;
+                });
+            }
+
+            createAudioNodes() {
+                const def = this.definition;
+
+                switch (def.audioTemplate) {
+                    case 'oscillator':
+                        this.audioNodes.oscillator = audioContext.createOscillator();
+                        this.audioNodes.output = audioContext.createGain();
+                        this.audioNodes.output.gain.value = 1;
+                        this.audioNodes.oscillator.connect(this.audioNodes.output);
+                        this.audioNodes.oscillator.start();
+                        this.outputs.set('audio', this.audioNodes.output);
+                        this.inputs.set('frequency', this.audioNodes.oscillator.frequency);
+                        break;
+
+                    case 'filter':
+                        this.audioNodes.filter = audioContext.createBiquadFilter();
+                        this.outputs.set('audio', this.audioNodes.filter);
+                        this.inputs.set('audio', this.audioNodes.filter);
+                        this.inputs.set('frequency', this.audioNodes.filter.frequency);
+                        break;
+
+                    case 'gain':
+                        this.audioNodes.gain = audioContext.createGain();
+                        this.outputs.set('audio', this.audioNodes.gain);
+                        this.inputs.set('audio', this.audioNodes.gain);
+                        this.inputs.set('gain', this.audioNodes.gain.gain);
+                        break;
+
+                    case 'delay':
+                        this.audioNodes.input = audioContext.createGain();
+                        this.audioNodes.delay = audioContext.createDelay(5.0);
+                        this.audioNodes.feedback = audioContext.createGain();
+                        this.audioNodes.output = audioContext.createGain();
+                        this.audioNodes.feedback.gain.value = 0.4;
+                        this.audioNodes.delay.delayTime.value = 0.5;
+                        this.audioNodes.input.connect(this.audioNodes.delay);
+                        this.audioNodes.delay.connect(this.audioNodes.feedback);
+                        this.audioNodes.feedback.connect(this.audioNodes.delay);
+                        this.audioNodes.delay.connect(this.audioNodes.output);
+                        this.audioNodes.input.connect(this.audioNodes.output);
+                        this.inputs.set('audio', this.audioNodes.input);
+                        this.outputs.set('audio', this.audioNodes.output);
+                        break;
+
+                    case 'noise':
+                        const bufferSize = 2 * audioContext.sampleRate;
+                        const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                        const output = noiseBuffer.getChannelData(0);
+                        for (let i = 0; i < bufferSize; i++) {
+                            output[i] = Math.random() * 2 - 1;
+                        }
+                        this.audioNodes.source = audioContext.createBufferSource();
+                        this.audioNodes.source.buffer = noiseBuffer;
+                        this.audioNodes.source.loop = true;
+                        this.audioNodes.gain = audioContext.createGain();
+                        this.audioNodes.source.connect(this.audioNodes.gain);
+                        this.audioNodes.source.start();
+                        this.outputs.set('audio', this.audioNodes.gain);
+                        break;
+                }
+            }
+
+            updateParam(name, value) {
+                super.updateParam(name, value);
+                // Map param to audio node based on template
+                const template = this.definition.audioTemplate;
+
+                if (template === 'oscillator') {
+                    if (name === 'frequency' && this.audioNodes.oscillator) {
+                        this.audioNodes.oscillator.frequency.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                    }
+                } else if (template === 'filter') {
+                    if (name === 'frequency' && this.audioNodes.filter) {
+                        this.audioNodes.filter.frequency.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                    } else if (name === 'resonance' && this.audioNodes.filter) {
+                        this.audioNodes.filter.Q.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                    }
+                } else if (template === 'gain') {
+                    if (name === 'level' && this.audioNodes.gain) {
+                        this.audioNodes.gain.gain.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                    }
+                } else if (template === 'delay') {
+                    if (name === 'time' && this.audioNodes.delay) {
+                        this.audioNodes.delay.delayTime.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                    } else if (name === 'feedback' && this.audioNodes.feedback) {
+                        this.audioNodes.feedback.gain.setTargetAtTime(Math.min(value, 0.95), audioContext.currentTime, 0.01);
+                    }
+                } else if (template === 'noise') {
+                    if (name === 'level' && this.audioNodes.gain) {
+                        this.audioNodes.gain.gain.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                    }
+                }
+            }
+
+            createUI() {
+                const def = this.definition;
+                let portsHtml = '<div class="module-ports"><div class="port-column inputs">';
+
+                // Add input ports based on template
+                if (def.audioTemplate === 'filter' || def.audioTemplate === 'gain' || def.audioTemplate === 'delay') {
+                    portsHtml += `<div class="port input" data-port="audio">
+                        <div class="port-dot audio"></div><span>IN</span>
+                    </div>`;
+                }
+                if (def.audioTemplate === 'oscillator' || def.audioTemplate === 'filter') {
+                    portsHtml += `<div class="port input" data-port="frequency">
+                        <div class="port-dot control"></div><span>MOD</span>
+                    </div>`;
+                }
+
+                portsHtml += '</div><div class="port-column outputs">';
+
+                // Output port
+                portsHtml += `<div class="port output" data-port="audio">
+                    <span>OUT</span><div class="port-dot audio"></div>
+                </div>`;
+
+                portsHtml += '</div></div>';
+
+                // Generate controls
+                let controlsHtml = '';
+                def.controls.forEach(ctrl => {
+                    const value = this.params[ctrl.id];
+                    controlsHtml += `<div class="control-group">
+                        <label>${ctrl.label} <span class="value">${ctrl.type === 'range' ? (ctrl.isPercent ? (value * 100).toFixed(0) : value.toFixed(ctrl.step < 1 ? 2 : 0)) : value}</span>${ctrl.isPercent ? '%' : ''}</label>
+                        <input type="range" data-param="${ctrl.id}" min="${ctrl.min}" max="${ctrl.max}" step="${ctrl.step}" value="${value}">
+                    </div>`;
+                });
+
+                return portsHtml + controlsHtml;
+            }
+        }
+
+        // ==================== MODULE FACTORY ====================
+        function createModule(type) {
+            history.pushState();
+            return createModuleWithoutHistory(type);
+        }
+
+        function createModuleWithoutHistory(type) {
+            const id = `${type}-${++state.moduleCounter}`;
+            let module;
+
+            switch (type) {
+                case 'vco': module = new VCOModule(id); break;
+                case 'vcf': module = new VCFModule(id); break;
+                case 'vca': module = new VCAModule(id); break;
+                case 'adsr': module = new ADSRModule(id); break;
+                case 'lfo': module = new LFOModule(id); break;
+                case 'mixer': module = new MixerModule(id); break;
+                case 'master': module = new MasterOutputModule(id); break;
+                case 'noise': module = new NoiseModule(id); break;
+                case 'memory': module = new MemoryModule(id); break;
+                case 'knowledge': module = new KnowledgeModule(id); break;
+                default:
+                    // Check for custom module
+                    if (customModuleDefinitions[type]) {
+                        module = new CustomModule(id, customModuleDefinitions[type]);
+                    } else {
+                        return null;
+                    }
+            }
+
+            if (audioContext) {
+                module.createAudioNodes();
+            }
+
+            state.modules.set(id, module);
+            return module;
+        }
+
+        // ==================== UI RENDERING ====================
+        function renderModule(module) {
+            const modulesContainer = document.getElementById('modules');
+
+            const el = document.createElement('div');
+            el.className = `synth-module ${module.category}`;
+            el.dataset.moduleId = module.id;
+            el.style.left = module.position.x + 'px';
+            el.style.top = module.position.y + 'px';
+
+            const headerButtons = module.type !== 'master'
+                ? `<div class="module-header-buttons">
+                       <button class="module-edit" title="Edit module">&#9881;</button>
+                       <button class="module-delete" title="Delete module">&times;</button>
+                   </div>`
+                : '';
+
+            el.innerHTML = `
+                <div class="module-header">
+                    <span class="module-title">${module.name}</span>
+                    ${headerButtons}
+                </div>
+                <div class="module-body">
+                    ${module.createUI()}
+                </div>
+            `;
+
+            module.element = el;
+            modulesContainer.appendChild(el);
+
+            // Setup module event listeners
+            setupModuleEvents(module, el);
+
+            // Initialize ADSR display if needed
+            if (module.type === 'adsr') {
+                setTimeout(() => module.updateADSRDisplay(), 10);
+            }
+
+            return el;
+        }
+
+        function setupModuleEvents(module, el) {
+            // Dragging
+            const header = el.querySelector('.module-header');
+            let isDragging = false;
+            let startX, startY, startLeft, startTop;
+
+            header.addEventListener('mousedown', (e) => {
+                if (e.target.classList.contains('module-delete')) return;
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startLeft = el.offsetLeft;
+                startTop = el.offsetTop;
+                el.classList.add('selected');
+                state.selectedModule = module;
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                module.position.x = startLeft + dx;
+                module.position.y = startTop + dy;
+                el.style.left = module.position.x + 'px';
+                el.style.top = module.position.y + 'px';
+                drawCables();
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            // Delete button
+            const deleteBtn = el.querySelector('.module-delete');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', () => {
+                    deleteModule(module.id);
+                });
+            }
+
+            // Edit button
+            const editBtn = el.querySelector('.module-edit');
+            if (editBtn) {
+                editBtn.addEventListener('click', () => {
+                    openModuleEditorForInstance(module);
+                });
+            }
+
+            // Control changes
+            el.querySelectorAll('input[type="range"], select').forEach(control => {
+                control.addEventListener('input', (e) => {
+                    const param = e.target.dataset.param;
+                    let value = e.target.type === 'range' ? parseFloat(e.target.value) : e.target.value;
+
+                    // Track param change for undo/redo (debounced)
+                    history.trackParamChange();
+
+                    module.updateParam(param, value);
+
+                    // Update value display
+                    const label = e.target.parentElement.querySelector('label .value');
+                    if (label) {
+                        if (param === 'level' || param === 'volume' || param === 'sustain' ||
+                            param.startsWith('ch') || param === 'depth' || param === 'clarity' || param === 'decay' || param === 'intensity') {
+                            label.textContent = (value * 100).toFixed(0);
+                        } else if (param === 'attack' || param === 'release') {
+                            label.textContent = value.toFixed(2);
+                        } else if (param === 'rate') {
+                            label.textContent = value.toFixed(1);
+                        } else {
+                            label.textContent = Math.round(value);
+                        }
+                    }
+                });
+            });
+
+            // Trigger button (for ADSR)
+            const triggerBtn = el.querySelector('.trigger-btn');
+            if (triggerBtn) {
+                triggerBtn.addEventListener('mousedown', () => {
+                    module.trigger();
+                    triggerBtn.classList.add('active');
+                });
+                triggerBtn.addEventListener('mouseup', () => {
+                    module.release();
+                    triggerBtn.classList.remove('active');
+                });
+                triggerBtn.addEventListener('mouseleave', () => {
+                    module.release();
+                    triggerBtn.classList.remove('active');
+                });
+            }
+
+            // Checkbox group handling (for multi-select)
+            el.querySelectorAll('.checkbox-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    item.classList.toggle('checked');
+                    const checkbox = item.querySelector('input[type="checkbox"]');
+                    if (checkbox) {
+                        checkbox.checked = !checkbox.checked;
+                    }
+                    // Get the channel/mode name from data attribute
+                    const channel = item.dataset.channel;
+                    const mode = item.dataset.mode;
+                    if (channel && module.toggleChannel) {
+                        module.toggleChannel(channel);
+                    }
+                    if (mode && module.toggleMode) {
+                        module.toggleMode(mode);
+                    }
+                });
+            });
+
+            // Port click handling for connections
+            el.querySelectorAll('.port').forEach(port => {
+                port.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const portName = port.dataset.port;
+                    const isOutput = port.classList.contains('output');
+                    handlePortClick(module, portName, isOutput);
+                });
+            });
+        }
+
+        // ==================== CONNECTION SYSTEM ====================
+        function handlePortClick(module, portName, isOutput) {
+            if (!state.pendingConnection) {
+                // Start new connection
+                state.pendingConnection = {
+                    module,
+                    portName,
+                    isOutput
+                };
+                highlightPort(module, portName, isOutput, true);
+            } else {
+                // Complete connection
+                const pending = state.pendingConnection;
+
+                // Validate connection (output -> input)
+                if (pending.isOutput === isOutput) {
+                    // Same type, cancel
+                    highlightPort(pending.module, pending.portName, pending.isOutput, false);
+                    state.pendingConnection = null;
+                    return;
+                }
+
+                const source = pending.isOutput ? pending : { module, portName, isOutput };
+                const target = pending.isOutput ? { module, portName, isOutput } : pending;
+
+                createConnection(
+                    source.module, source.portName,
+                    target.module, target.portName
+                );
+
+                highlightPort(pending.module, pending.portName, pending.isOutput, false);
+                state.pendingConnection = null;
+            }
+        }
+
+        function highlightPort(module, portName, isOutput, highlight) {
+            const portEl = module.element.querySelector(
+                `.port.${isOutput ? 'output' : 'input'}[data-port="${portName}"] .port-dot`
+            );
+            if (portEl) {
+                if (highlight) {
+                    portEl.style.transform = 'scale(1.5)';
+                    portEl.style.boxShadow = '0 0 10px currentColor';
+                } else {
+                    portEl.style.transform = '';
+                    portEl.style.boxShadow = '';
+                }
+            }
+        }
+
+        function createConnectionWithoutHistory(sourceModule, sourcePort, targetModule, targetPort) {
+            // Check if connection already exists
+            const exists = state.connections.some(c =>
+                c.sourceModule === sourceModule && c.sourcePort === sourcePort &&
+                c.targetModule === targetModule && c.targetPort === targetPort
+            );
+            if (exists) return;
+
+            // Get audio nodes
+            const sourceNode = sourceModule.outputs.get(sourcePort);
+            const targetNode = targetModule.inputs.get(targetPort);
+
+            if (!sourceNode || !targetNode) {
+                console.warn('Cannot connect: nodes not found');
+                return;
+            }
+
+            try {
+                sourceNode.connect(targetNode);
+
+                const connection = {
+                    id: `conn-${Date.now()}`,
+                    sourceModule,
+                    sourcePort,
+                    targetModule,
+                    targetPort,
+                    color: targetNode instanceof AudioParam ? 'var(--cable-control)' : 'var(--cable-audio)'
+                };
+
+                state.connections.push(connection);
+                updatePortVisuals();
+                drawCables();
+            } catch (e) {
+                console.error('Connection failed:', e);
+            }
+        }
+
+        function createConnection(sourceModule, sourcePort, targetModule, targetPort) {
+            history.pushState();
+            createConnectionWithoutHistory(sourceModule, sourcePort, targetModule, targetPort);
+        }
+
+        function removeConnectionWithoutHistory(connectionId) {
+            const index = state.connections.findIndex(c => c.id === connectionId);
+            if (index === -1) return;
+
+            const conn = state.connections[index];
+            const sourceNode = conn.sourceModule.outputs.get(conn.sourcePort);
+            const targetNode = conn.targetModule.inputs.get(conn.targetPort);
+
+            if (sourceNode && targetNode) {
+                try {
+                    sourceNode.disconnect(targetNode);
+                } catch (e) {}
+            }
+
+            state.connections.splice(index, 1);
+            updatePortVisuals();
+            drawCables();
+        }
+
+        function removeConnection(connectionId) {
+            history.pushState();
+            removeConnectionWithoutHistory(connectionId);
+        }
+
+        function updatePortVisuals() {
+            // Reset all ports
+            document.querySelectorAll('.port-dot').forEach(dot => {
+                dot.classList.remove('connected');
+            });
+
+            // Mark connected ports
+            state.connections.forEach(conn => {
+                const sourcePort = conn.sourceModule.element?.querySelector(
+                    `.port.output[data-port="${conn.sourcePort}"] .port-dot`
+                );
+                const targetPort = conn.targetModule.element?.querySelector(
+                    `.port.input[data-port="${conn.targetPort}"] .port-dot`
+                );
+
+                if (sourcePort) sourcePort.classList.add('connected');
+                if (targetPort) targetPort.classList.add('connected');
+            });
+        }
+
+        function deleteModule(moduleId) {
+            const module = state.modules.get(moduleId);
+            if (!module) return;
+
+            history.pushState();
+
+            // Remove all connections to/from this module (without individual history tracking)
+            const connectionsToRemove = state.connections.filter(
+                c => c.sourceModule.id === moduleId || c.targetModule.id === moduleId
+            );
+            connectionsToRemove.forEach(c => removeConnectionWithoutHistory(c.id));
+
+            // Dispose module
+            module.dispose();
+            state.modules.delete(moduleId);
+
+            drawCables();
+        }
+
+        // ==================== CABLE DRAWING ====================
+        function drawCables() {
+            const canvas = document.getElementById('cables');
+            const ctx = canvas.getContext('2d');
+            const workspace = document.getElementById('workspace');
+
+            canvas.width = workspace.offsetWidth;
+            canvas.height = workspace.offsetHeight;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            state.connections.forEach(conn => {
+                const start = conn.sourceModule.getPortPosition(conn.sourcePort, true);
+                const end = conn.targetModule.getPortPosition(conn.targetPort, false);
+
+                if (!start || !end) return;
+
+                drawCable(ctx, start.x, start.y, end.x, end.y, conn.color);
+            });
+
+            // Draw pending connection
+            if (state.pendingConnection) {
+                const pending = state.pendingConnection;
+                const portPos = pending.module.getPortPosition(pending.portName, pending.isOutput);
+                if (portPos && lastMousePos) {
+                    drawCable(ctx, portPos.x, portPos.y, lastMousePos.x, lastMousePos.y, '#ffffff55');
+                }
+            }
+        }
+
+        let lastMousePos = null;
+        document.getElementById('workspace').addEventListener('mousemove', (e) => {
+            const workspace = document.getElementById('workspace').getBoundingClientRect();
+            lastMousePos = {
+                x: e.clientX - workspace.left,
+                y: e.clientY - workspace.top
+            };
+            if (state.pendingConnection) {
+                drawCables();
+            }
+        });
+
+        function drawCable(ctx, x1, y1, x2, y2, color) {
+            const midY = Math.max(y1, y2) + 50 + Math.abs(x2 - x1) * 0.2;
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.quadraticCurveTo((x1 + x2) / 2, midY, x2, y2);
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // Cable glow
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 6;
+            ctx.globalAlpha = 0.3;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+
+        // ==================== OSCILLOSCOPE ====================
+        class Oscilloscope {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.mode = 'waveform';
+                this.running = false;
+                this.analyser = null;
+                this.dataArray = null;
+            }
+
+            setAnalyser(analyser) {
+                this.analyser = analyser;
+                if (analyser) {
+                    this.dataArray = new Uint8Array(analyser.frequencyBinCount);
+                }
+            }
+
+            start() {
+                this.running = true;
+                this.draw();
+            }
+
+            stop() {
+                this.running = false;
+            }
+
+            setMode(mode) {
+                this.mode = mode;
+            }
+
+            draw() {
+                if (!this.running) return;
+                requestAnimationFrame(() => this.draw());
+
+                if (!this.analyser || !this.dataArray) return;
+
+                const { canvas, ctx, analyser, dataArray, mode } = this;
+
+                // Resize canvas to container
+                const rect = canvas.getBoundingClientRect();
+                if (canvas.width !== rect.width || canvas.height !== rect.height) {
+                    canvas.width = rect.width;
+                    canvas.height = rect.height;
+                }
+
+                const w = canvas.width;
+                const h = canvas.height;
+
+                // Clear
+                ctx.fillStyle = '#050510';
+                ctx.fillRect(0, 0, w, h);
+
+                // Grid
+                ctx.strokeStyle = 'rgba(88, 166, 255, 0.1)';
+                ctx.lineWidth = 1;
+                for (let i = 1; i < 4; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, h * i / 4);
+                    ctx.lineTo(w, h * i / 4);
+                    ctx.stroke();
+                }
+                for (let i = 1; i < 6; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(w * i / 6, 0);
+                    ctx.lineTo(w * i / 6, h);
+                    ctx.stroke();
+                }
+
+                if (mode === 'waveform') {
+                    analyser.getByteTimeDomainData(dataArray);
+
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#58a6ff';
+                    ctx.beginPath();
+
+                    const sliceWidth = w / dataArray.length;
+                    let x = 0;
+
+                    for (let i = 0; i < dataArray.length; i++) {
+                        const v = dataArray[i] / 128.0;
+                        const y = v * h / 2;
+
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                        x += sliceWidth;
+                    }
+
+                    ctx.stroke();
+
+                    // Glow effect
+                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = 'rgba(88, 166, 255, 0.3)';
+                    ctx.stroke();
+                } else {
+                    // Spectrum
+                    analyser.getByteFrequencyData(dataArray);
+
+                    const barCount = 64;
+                    const barWidth = w / barCount - 2;
+                    const step = Math.floor(dataArray.length / barCount);
+
+                    for (let i = 0; i < barCount; i++) {
+                        const value = dataArray[i * step];
+                        const barHeight = (value / 255) * h * 0.9;
+
+                        const hue = 160 + (i / barCount) * 60;
+                        ctx.fillStyle = `hsl(${hue}, 80%, 50%)`;
+
+                        const x = i * (barWidth + 2);
+                        ctx.fillRect(x, h - barHeight, barWidth, barHeight);
+
+                        // Glow
+                        ctx.fillStyle = `hsla(${hue}, 80%, 50%, 0.3)`;
+                        ctx.fillRect(x - 2, h - barHeight - 2, barWidth + 4, barHeight + 4);
+                    }
+                }
+            }
+        }
+
+        let oscilloscope = null;
+
+        // ==================== KEYBOARD ====================
+        function setupKeyboard() {
+            const keyboard = document.getElementById('keyboard');
+            const whiteKeys = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
+            const blackKeys = [
+                { note: 'C#4', position: 12.5 },
+                { note: 'D#4', position: 26.5 },
+                { note: 'F#4', position: 54.5 },
+                { note: 'G#4', position: 68.5 },
+                { note: 'A#4', position: 82.5 }
+            ];
+
+            // White keys
+            whiteKeys.forEach((note, i) => {
+                const key = document.createElement('div');
+                key.className = 'white-key';
+                key.dataset.note = note;
+                keyboard.appendChild(key);
+
+                key.addEventListener('mousedown', () => playNote(note, key));
+                key.addEventListener('mouseup', () => stopNote(note, key));
+                key.addEventListener('mouseleave', () => stopNote(note, key));
+            });
+
+            // Black keys
+            blackKeys.forEach(({ note, position }) => {
+                const key = document.createElement('div');
+                key.className = 'black-key';
+                key.dataset.note = note;
+                key.style.left = `${position}%`;
+                keyboard.appendChild(key);
+
+                key.addEventListener('mousedown', () => playNote(note, key));
+                key.addEventListener('mouseup', () => stopNote(note, key));
+                key.addEventListener('mouseleave', () => stopNote(note, key));
+            });
+        }
+
+        function playNote(note, keyElement) {
+            if (!isRunning || state.noteFrequencies[note]) return;
+
+            const freq = noteFreqs[note];
+            state.noteFrequencies[note] = freq;
+
+            if (keyElement) keyElement.classList.add('active');
+
+            // Trigger all VCOs with this frequency
+            state.modules.forEach(module => {
+                if (module.type === 'vco') {
+                    module.setFrequency(freq);
+                }
+                if (module.type === 'adsr') {
+                    module.trigger();
+                }
+            });
+        }
+
+        function stopNote(note, keyElement) {
+            if (!state.noteFrequencies[note]) return;
+
+            delete state.noteFrequencies[note];
+            if (keyElement) keyElement.classList.remove('active');
+
+            // Release envelopes
+            state.modules.forEach(module => {
+                if (module.type === 'adsr') {
+                    module.release();
+                }
+            });
+        }
+
+        // Computer keyboard support
+        document.addEventListener('keydown', (e) => {
+            if (e.repeat) return;
+            const note = keyMap[e.key.toLowerCase()];
+            if (note) {
+                const keyEl = document.querySelector(`[data-note="${note}"]`);
+                playNote(note, keyEl);
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const note = keyMap[e.key.toLowerCase()];
+            if (note) {
+                const keyEl = document.querySelector(`[data-note="${note}"]`);
+                stopNote(note, keyEl);
+            }
+        });
+
+        // ==================== PRESETS ====================
+        const presets = {
+            // Baseline Awareness: Sensory Input → Self-Model → Behavioral Output
+            basic: () => {
+                clearAll(true);
+                const vco = createModule('vco');
+                vco.position = { x: 50, y: 100 };
+                renderModule(vco);
+
+                const vca = createModule('vca');
+                vca.position = { x: 280, y: 100 };
+                renderModule(vca);
+
+                const master = createModule('master');
+                master.position = { x: 510, y: 100 };
+                renderModule(master);
+                masterOutput = master;
+                oscilloscope.setAnalyser(master.getAnalyser());
+
+                setTimeout(() => {
+                    createConnection(vco, 'audio', vca, 'audio');
+                    createConnection(vca, 'audio', master, 'audio');
+                }, 100);
+            },
+            // Guarded Mind: Sensory → Attention Filter (Vigilant) → Response Envelope → Self-Model → Output
+            bass: () => {
+                clearAll(true);
+                const vco = createModule('vco');
+                vco.position = { x: 50, y: 80 };
+                vco.params.waveform = 'sawtooth';
+                vco.params.frequency = 110;
+                renderModule(vco);
+                vco.updateParam('frequency', 110);
+
+                const vcf = createModule('vcf');
+                vcf.position = { x: 280, y: 80 };
+                vcf.params.type = 'highpass';
+                vcf.params.frequency = 500;
+                vcf.params.resonance = 8;
+                renderModule(vcf);
+                vcf.updateParam('type', 'highpass');
+                vcf.updateParam('frequency', 500);
+                vcf.updateParam('resonance', 8);
+
+                const adsr = createModule('adsr');
+                adsr.position = { x: 50, y: 320 };
+                adsr.params.attack = 0.01;
+                adsr.params.decay = 0.3;
+                adsr.params.sustain = 0.4;
+                adsr.params.release = 0.2;
+                renderModule(adsr);
+
+                const lfo = createModule('lfo');
+                lfo.position = { x: 280, y: 320 };
+                lfo.params.rate = 0.5;
+                lfo.params.depth = 300;
+                renderModule(lfo);
+                lfo.updateParam('rate', 0.5);
+                lfo.updateParam('depth', 300);
+
+                const vca = createModule('vca');
+                vca.position = { x: 510, y: 80 };
+                renderModule(vca);
+
+                const master = createModule('master');
+                master.position = { x: 740, y: 80 };
+                renderModule(master);
+                masterOutput = master;
+                oscilloscope.setAnalyser(master.getAnalyser());
+
+                setTimeout(() => {
+                    createConnection(vco, 'audio', vcf, 'audio');
+                    createConnection(vcf, 'audio', adsr, 'input');
+                    createConnection(adsr, 'envelope', vca, 'audio');
+                    createConnection(lfo, 'modulation', vcf, 'frequency');
+                    createConnection(vca, 'audio', master, 'audio');
+                }, 100);
+            },
+            // Creative Explorer: Multiple inputs + Spontaneity → Pattern Integrator → Open Attention → Self-Model → Output
+            lead: () => {
+                clearAll(true);
+                const vco1 = createModule('vco');
+                vco1.position = { x: 50, y: 50 };
+                vco1.params.waveform = 'sine';
+                renderModule(vco1);
+                vco1.updateParam('waveform', 'sine');
+
+                const vco2 = createModule('vco');
+                vco2.position = { x: 50, y: 250 };
+                vco2.params.waveform = 'triangle';
+                vco2.params.detune = 7;
+                renderModule(vco2);
+                vco2.updateParam('waveform', 'triangle');
+                vco2.updateParam('detune', 7);
+
+                const noise = createModule('noise');
+                noise.position = { x: 50, y: 450 };
+                noise.params.level = 0.2;
+                renderModule(noise);
+                noise.updateParam('level', 0.2);
+
+                const mixer = createModule('mixer');
+                mixer.position = { x: 280, y: 150 };
+                renderModule(mixer);
+
+                const vcf = createModule('vcf');
+                vcf.position = { x: 510, y: 50 };
+                vcf.params.type = 'notch';
+                vcf.params.frequency = 3000;
+                vcf.params.resonance = 4;
+                renderModule(vcf);
+                vcf.updateParam('type', 'notch');
+                vcf.updateParam('frequency', 3000);
+                vcf.updateParam('resonance', 4);
+
+                const lfo = createModule('lfo');
+                lfo.position = { x: 510, y: 280 };
+                lfo.params.waveform = 'triangle';
+                lfo.params.rate = 8;
+                lfo.params.depth = 200;
+                renderModule(lfo);
+                lfo.updateParam('waveform', 'triangle');
+                lfo.updateParam('rate', 8);
+                lfo.updateParam('depth', 200);
+
+                const vca = createModule('vca');
+                vca.position = { x: 740, y: 50 };
+                renderModule(vca);
+
+                const master = createModule('master');
+                master.position = { x: 970, y: 50 };
+                renderModule(master);
+                masterOutput = master;
+                oscilloscope.setAnalyser(master.getAnalyser());
+
+                setTimeout(() => {
+                    createConnection(vco1, 'audio', mixer, 'ch1');
+                    createConnection(vco2, 'audio', mixer, 'ch2');
+                    createConnection(noise, 'audio', mixer, 'ch3');
+                    createConnection(mixer, 'audio', vcf, 'audio');
+                    createConnection(lfo, 'modulation', vcf, 'frequency');
+                    createConnection(vcf, 'audio', vca, 'audio');
+                    createConnection(vca, 'audio', master, 'audio');
+                }, 100);
+            },
+            // Deep Empathy: Sensory → Memory Trace → Pattern Integrator → Relaxed Attention → Response Envelope → Self-Model → Output
+            pad: () => {
+                clearAll(true);
+                const vco1 = createModule('vco');
+                vco1.position = { x: 50, y: 50 };
+                vco1.params.waveform = 'sine';
+                renderModule(vco1);
+                vco1.updateParam('waveform', 'sine');
+
+                const memory = createModule('memory');
+                memory.position = { x: 50, y: 280 };
+                memory.params.depth = 0.6;
+                memory.params.clarity = 0.5;
+                memory.params.decay = 0.7;
+                renderModule(memory);
+                memory.updateParam('depth', 0.6);
+                memory.updateParam('clarity', 0.5);
+                memory.updateParam('decay', 0.7);
+
+                const mixer = createModule('mixer');
+                mixer.position = { x: 280, y: 120 };
+                renderModule(mixer);
+
+                const vcf = createModule('vcf');
+                vcf.position = { x: 510, y: 50 };
+                vcf.params.type = 'lowpass';
+                vcf.params.frequency = 1500;
+                vcf.params.resonance = 2;
+                renderModule(vcf);
+                vcf.updateParam('frequency', 1500);
+                vcf.updateParam('resonance', 2);
+
+                const adsr = createModule('adsr');
+                adsr.position = { x: 510, y: 280 };
+                adsr.params.attack = 0.8;
+                adsr.params.decay = 0.5;
+                adsr.params.sustain = 0.7;
+                adsr.params.release = 1.5;
+                renderModule(adsr);
+
+                const vca = createModule('vca');
+                vca.position = { x: 740, y: 50 };
+                renderModule(vca);
+
+                const master = createModule('master');
+                master.position = { x: 970, y: 50 };
+                renderModule(master);
+                masterOutput = master;
+                oscilloscope.setAnalyser(master.getAnalyser());
+
+                setTimeout(() => {
+                    createConnection(vco1, 'audio', memory, 'audio');
+                    createConnection(vco1, 'audio', mixer, 'ch1');
+                    createConnection(memory, 'audio', mixer, 'ch2');
+                    createConnection(mixer, 'audio', vcf, 'audio');
+                    createConnection(vcf, 'audio', adsr, 'input');
+                    createConnection(adsr, 'envelope', vca, 'audio');
+                    createConnection(vca, 'audio', master, 'audio');
+                }, 100);
+            }
+        };
+
+        function clearAll(skipMasterRecreate = false) {
+            state.connections.forEach(c => {
+                try {
+                    const sourceNode = c.sourceModule.outputs.get(c.sourcePort);
+                    const targetNode = c.targetModule.inputs.get(c.targetPort);
+                    if (sourceNode && targetNode) sourceNode.disconnect(targetNode);
+                } catch (e) {}
+            });
+            state.connections = [];
+
+            state.modules.forEach(module => module.dispose());
+            state.modules.clear();
+
+            masterOutput = null;
+            oscilloscope.setAnalyser(null);
+
+            drawCables();
+
+            // Auto-recreate master module unless skipped (for undo/redo)
+            if (!skipMasterRecreate && isRunning) {
+                setTimeout(() => {
+                    const master = createModuleWithoutHistory('master');
+                    master.position = { x: 600, y: 150 };
+                    renderModule(master);
+                    masterOutput = master;
+                    oscilloscope.setAnalyser(master.getAnalyser());
+                }, 50);
+            }
+        }
+
+        // ==================== INITIALIZATION ====================
+        function initAudio() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            // Resume if suspended
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            isRunning = true;
+            document.getElementById('power-btn').classList.add('active');
+        }
+
+        function init() {
+            // Load custom modules from localStorage
+            loadCustomModules();
+
+            // Setup oscilloscope
+            const scopeCanvas = document.getElementById('oscilloscope-canvas');
+            oscilloscope = new Oscilloscope(scopeCanvas);
+            oscilloscope.start();
+
+            // Render palette dynamically (includes custom modules)
+            renderPalette();
+
+            // Note: Module palette click handlers are now set up in attachPaletteListeners()
+            // called by renderPalette()
+
+            // Oscilloscope tabs
+            document.querySelectorAll('.scope-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.scope-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    oscilloscope.setMode(tab.dataset.mode);
+                });
+            });
+
+            // Preset buttons
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (!isRunning) return;
+                    const preset = btn.dataset.preset;
+                    if (presets[preset]) {
+                        presets[preset]();
+                    }
+                });
+            });
+
+            // Clear button
+            document.getElementById('clear-btn').addEventListener('click', () => {
+                history.pushState();
+                clearAll();
+            });
+
+            // Undo/Redo buttons
+            document.getElementById('undo-btn').addEventListener('click', () => history.undo());
+            document.getElementById('redo-btn').addEventListener('click', () => history.redo());
+
+            // Power button
+            document.getElementById('power-btn').addEventListener('click', () => {
+                if (!audioContext) {
+                    initAudio();
+                } else if (isRunning) {
+                    audioContext.suspend();
+                    isRunning = false;
+                    document.getElementById('power-btn').classList.remove('active');
+                } else {
+                    audioContext.resume();
+                    isRunning = true;
+                    document.getElementById('power-btn').classList.add('active');
+                }
+            });
+
+            // Start overlay
+            document.getElementById('start-btn').addEventListener('click', () => {
+                initAudio();
+                document.getElementById('start-overlay').style.display = 'none';
+
+                // Load basic preset by default
+                setTimeout(() => presets.basic(), 100);
+            });
+
+            // Click outside modules to deselect
+            document.getElementById('workspace').addEventListener('click', (e) => {
+                if (e.target.id === 'workspace' || e.target.id === 'modules') {
+                    document.querySelectorAll('.synth-module.selected').forEach(m => {
+                        m.classList.remove('selected');
+                    });
+                    state.selectedModule = null;
+
+                    // Cancel pending connection
+                    if (state.pendingConnection) {
+                        highlightPort(
+                            state.pendingConnection.module,
+                            state.pendingConnection.portName,
+                            state.pendingConnection.isOutput,
+                            false
+                        );
+                        state.pendingConnection = null;
+                        drawCables();
+                    }
+                }
+            });
+
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                drawCables();
+            });
+
+            // Right-click to delete connection
+            document.getElementById('cables').style.pointerEvents = 'auto';
+            document.getElementById('cables').addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+
+                const workspace = document.getElementById('workspace').getBoundingClientRect();
+                const x = e.clientX - workspace.left;
+                const y = e.clientY - workspace.top;
+
+                // Find clicked connection
+                for (let i = state.connections.length - 1; i >= 0; i--) {
+                    const conn = state.connections[i];
+                    const start = conn.sourceModule.getPortPosition(conn.sourcePort, true);
+                    const end = conn.targetModule.getPortPosition(conn.targetPort, false);
+
+                    if (start && end) {
+                        // Simple distance check to cable midpoint
+                        const midX = (start.x + end.x) / 2;
+                        const midY = Math.max(start.y, end.y) + 50;
+                        const dist = Math.sqrt((x - midX) ** 2 + (y - midY) ** 2);
+
+                        if (dist < 30) {
+                            removeConnection(conn.id);
+                            return;
+                        }
+                    }
+                }
+            });
+
+            // ==================== MODULE EDITOR ====================
+            setupModuleEditor();
+        }
+
+        // Global helper for adding controls to the editor (used by both setupModuleEditor and openModuleEditorForInstance)
+        function addControlToEditor(existingCtrl = null) {
+            const controlsList = document.getElementById('editor-controls-list');
+            const item = document.createElement('div');
+            item.className = 'control-editor-item';
+            item.innerHTML = `
+                <button class="remove-control">Remove</button>
+                <div class="control-editor-row">
+                    <div>
+                        <label>Control ID</label>
+                        <input type="text" class="ctrl-id" placeholder="level" value="${existingCtrl?.id || ''}">
+                    </div>
+                    <div>
+                        <label>Label</label>
+                        <input type="text" class="ctrl-label" placeholder="Level" value="${existingCtrl?.label || ''}">
+                    </div>
+                </div>
+                <div class="control-editor-row">
+                    <div>
+                        <label>Min</label>
+                        <input type="number" class="ctrl-min" value="${existingCtrl?.min ?? 0}" step="any">
+                    </div>
+                    <div>
+                        <label>Max</label>
+                        <input type="number" class="ctrl-max" value="${existingCtrl?.max ?? 1}" step="any">
+                    </div>
+                </div>
+                <div class="control-editor-row">
+                    <div>
+                        <label>Step</label>
+                        <input type="number" class="ctrl-step" value="${existingCtrl?.step ?? 0.01}" step="any">
+                    </div>
+                    <div>
+                        <label>Default</label>
+                        <input type="number" class="ctrl-default" value="${existingCtrl?.default ?? 0.5}" step="any">
+                    </div>
+                </div>
+            `;
+            item.querySelector('.remove-control').addEventListener('click', () => item.remove());
+            controlsList.appendChild(item);
+        }
+
+        // Module Editor Setup
+        function setupModuleEditor() {
+            const modal = document.getElementById('module-editor-modal');
+            const closeBtn = modal.querySelector('.modal-close');
+            const cancelBtn = document.getElementById('editor-cancel');
+            const saveBtn = document.getElementById('editor-save');
+            const addControlBtn = document.getElementById('add-control-btn');
+            const controlsList = document.getElementById('editor-controls-list');
+            const createCustomBtn = document.getElementById('create-custom-btn');
+
+            let editingModuleId = null;
+
+            function openEditor(moduleId = null) {
+                editingModuleId = moduleId;
+                modal.classList.remove('hidden');
+
+                // Clear form
+                document.getElementById('editor-name').value = '';
+                document.getElementById('editor-category').value = 'source';
+                document.getElementById('editor-icon').value = '&#9733;';
+                document.getElementById('editor-audio-type').value = 'oscillator';
+                controlsList.innerHTML = '';
+
+                // Add default control
+                addControlToEditor();
+
+                if (moduleId && customModuleDefinitions[moduleId]) {
+                    // Edit existing
+                    const def = customModuleDefinitions[moduleId];
+                    document.getElementById('editor-name').value = def.name;
+                    document.getElementById('editor-category').value = def.category;
+                    document.getElementById('editor-icon').value = def.icon;
+                    document.getElementById('editor-audio-type').value = def.audioTemplate;
+
+                    controlsList.innerHTML = '';
+                    def.controls.forEach(ctrl => addControlToEditor(ctrl));
+                }
+            }
+
+            function closeEditor() {
+                modal.classList.add('hidden');
+                editingModuleId = null;
+                // Clean up instance editing markers
+                delete modal.dataset.editingInstanceId;
+                delete modal.dataset.editingType;
+            }
+
+            function saveModule() {
+                const name = document.getElementById('editor-name').value.trim();
+                if (!name) {
+                    alert('Please enter a module name');
+                    return;
+                }
+
+                const category = document.getElementById('editor-category').value;
+                const icon = document.getElementById('editor-icon').value || '&#9733;';
+                const audioTemplate = document.getElementById('editor-audio-type').value;
+
+                // Gather controls
+                const controls = [];
+                controlsList.querySelectorAll('.control-editor-item').forEach(item => {
+                    const id = item.querySelector('.ctrl-id').value.trim();
+                    const label = item.querySelector('.ctrl-label').value.trim();
+                    if (id && label) {
+                        controls.push({
+                            id,
+                            label,
+                            type: 'range',
+                            min: parseFloat(item.querySelector('.ctrl-min').value) || 0,
+                            max: parseFloat(item.querySelector('.ctrl-max').value) || 1,
+                            step: parseFloat(item.querySelector('.ctrl-step').value) || 0.01,
+                            default: parseFloat(item.querySelector('.ctrl-default').value) || 0.5,
+                            isPercent: false
+                        });
+                    }
+                });
+
+                if (controls.length === 0) {
+                    alert('Please add at least one control');
+                    return;
+                }
+
+                // Check if editing an existing module instance
+                const instanceId = modal.dataset.editingInstanceId;
+                const originalType = modal.dataset.editingType;
+
+                // Generate typeId
+                let typeId;
+                if (editingModuleId) {
+                    // Editing an existing custom module definition from palette
+                    typeId = editingModuleId;
+                } else if (instanceId && customModuleDefinitions[originalType]) {
+                    // Editing an instance of a custom module - update its definition
+                    typeId = originalType;
+                } else {
+                    // Creating new custom module or variant of built-in
+                    typeId = 'custom-' + Date.now();
+                }
+
+                const definition = {
+                    typeId,
+                    name,
+                    category,
+                    icon,
+                    audioTemplate,
+                    controls
+                };
+
+                customModuleDefinitions[typeId] = definition;
+                saveCustomModules();
+                renderPalette();
+
+                // If we were editing a module instance, update its display
+                if (instanceId) {
+                    const moduleInstance = state.modules.get(instanceId);
+                    if (moduleInstance) {
+                        // Update module name
+                        moduleInstance.name = name;
+                        const nameEl = moduleInstance.element.querySelector('.module-name');
+                        if (nameEl) nameEl.textContent = name;
+
+                        // Update icon
+                        const iconEl = moduleInstance.element.querySelector('.module-icon');
+                        if (iconEl) iconEl.innerHTML = icon;
+                    }
+                }
+
+                closeEditor();
+            }
+
+            // Event listeners
+            closeBtn.addEventListener('click', closeEditor);
+            cancelBtn.addEventListener('click', closeEditor);
+            saveBtn.addEventListener('click', saveModule);
+            addControlBtn.addEventListener('click', () => addControlToEditor());
+            createCustomBtn.addEventListener('click', () => openEditor());
+
+            // Close on backdrop click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeEditor();
+            });
+        }
+
+        // Open module editor for an existing module instance
+        function openModuleEditorForInstance(module) {
+            const modal = document.getElementById('module-editor-modal');
+            const controlsList = document.getElementById('editor-controls-list');
+
+            // Type-to-category mapping for built-in modules
+            const typeMap = {
+                'vco': { category: 'source', audioTemplate: 'oscillator' },
+                'noise': { category: 'source', audioTemplate: 'noise' },
+                'memory': { category: 'source', audioTemplate: 'delay' },
+                'knowledge': { category: 'source', audioTemplate: 'gain' },
+                'vcf': { category: 'processor', audioTemplate: 'filter' },
+                'mixer': { category: 'processor', audioTemplate: 'gain' },
+                'vca': { category: 'processor', audioTemplate: 'gain' },
+                'lfo': { category: 'modulator', audioTemplate: 'oscillator' },
+                'adsr': { category: 'modulator', audioTemplate: 'gain' }
+            };
+
+            // Get module info
+            let category, audioTemplate, icon;
+
+            if (customModuleDefinitions[module.type]) {
+                // It's a custom module - edit its definition
+                const def = customModuleDefinitions[module.type];
+                category = def.category;
+                audioTemplate = def.audioTemplate;
+                icon = def.icon;
+            } else if (typeMap[module.type]) {
+                // Built-in module - use mapping
+                category = typeMap[module.type].category;
+                audioTemplate = typeMap[module.type].audioTemplate;
+                icon = module.element.querySelector('.module-icon')?.innerHTML || '&#9733;';
+            } else {
+                return; // Unknown type (like master)
+            }
+
+            // Populate form
+            document.getElementById('editor-name').value = module.name;
+            document.getElementById('editor-category').value = category;
+            document.getElementById('editor-icon').value = icon;
+            document.getElementById('editor-audio-type').value = audioTemplate;
+
+            // Extract controls from module's current UI
+            controlsList.innerHTML = '';
+            const sliders = module.element.querySelectorAll('input[type="range"]');
+            sliders.forEach(slider => {
+                const paramId = slider.dataset.param;
+                const labelEl = slider.parentElement.querySelector('label');
+                let labelText = paramId;
+                if (labelEl) {
+                    // Extract label text before the colon or value span
+                    const fullText = labelEl.textContent;
+                    labelText = fullText.split(':')[0].trim();
+                }
+                addControlToEditor({
+                    id: paramId,
+                    label: labelText,
+                    min: parseFloat(slider.min),
+                    max: parseFloat(slider.max),
+                    step: parseFloat(slider.step),
+                    default: parseFloat(slider.value)
+                });
+            });
+
+            // If no controls found, add a default
+            if (controlsList.children.length === 0) {
+                addControlToEditor();
+            }
+
+            // Mark that we're editing an instance (store module id and original type)
+            modal.dataset.editingInstanceId = module.id;
+            modal.dataset.editingType = module.type;
+
+            modal.classList.remove('hidden');
+        }
+
+        // Render palette dynamically
+        function renderPalette() {
+            const palette = document.getElementById('module-palette');
+
+            // Built-in modules
+            const builtIn = {
+                sources: [
+                    { type: 'vco', icon: '&#9678;', name: 'Sensory Input' },
+                    { type: 'noise', icon: '~', name: 'Random Noise' },
+                    { type: 'memory', icon: '&#9744;', name: 'Base Knowledge' },
+                    { type: 'knowledge', icon: '&#9733;', name: 'Knowledge Source' }
+                ],
+                processors: [
+                    { type: 'vcf', icon: '&#9671;', name: 'Attention Filter' },
+                    { type: 'mixer', icon: '&#9881;', name: 'Pattern Recognizer' },
+                    { type: 'vca', icon: '&#10038;', name: 'Spontaneity' }
+                ],
+                modulators: [
+                    { type: 'lfo', icon: '&#9829;', name: 'Emotional State' },
+                    { type: 'adsr', icon: '&#8599;', name: 'Reaction Shaper' }
+                ],
+                output: [
+                    { type: 'master', icon: '&#9654;', name: 'Behavioral Core' }
+                ]
+            };
+
+            // Add custom modules to their categories
+            Object.values(customModuleDefinitions).forEach(def => {
+                const cat = def.category + 's'; // source -> sources, etc.
+                if (!builtIn[cat]) builtIn[cat] = [];
+                builtIn[cat].push({
+                    type: def.typeId,
+                    icon: def.icon,
+                    name: def.name,
+                    isCustom: true
+                });
+            });
+
+            // Generate HTML
+            let html = '';
+
+            // Sources
+            html += '<div class="palette-category sources">Sources</div>';
+            html += renderPaletteRow(builtIn.sources);
+
+            // Processors
+            html += '<div class="palette-category processors">Processors</div>';
+            html += renderPaletteRow(builtIn.processors);
+
+            // Modulators
+            html += '<div class="palette-category modulators">Modulators</div>';
+            html += renderPaletteRow(builtIn.modulators);
+
+            // Output
+            html += '<div class="palette-category output">Output</div>';
+            html += renderPaletteRow(builtIn.output);
+
+            // Create custom button
+            html += `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                <button id="create-custom-btn" class="header-btn" style="width: 100%;">+ Create Custom Module</button>
+            </div>`;
+
+            palette.innerHTML = html;
+
+            // Re-attach event listeners
+            attachPaletteListeners();
+        }
+
+        function renderPaletteRow(items) {
+            let html = '';
+            for (let i = 0; i < items.length; i += 2) {
+                html += '<div class="palette-row">';
+                html += renderPaletteItem(items[i]);
+                if (items[i + 1]) {
+                    html += renderPaletteItem(items[i + 1]);
+                }
+                html += '</div>';
+            }
+            return html;
+        }
+
+        function renderPaletteItem(item) {
+            return `<div class="palette-item" data-type="${item.type}">
+                <span class="icon">${item.icon}</span>
+                ${item.name}
+            </div>`;
+        }
+
+        function attachPaletteListeners() {
+            document.querySelectorAll('.palette-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    if (!isRunning) return;
+                    const type = item.dataset.type;
+
+                    // Singleton check for master module
+                    if (type === 'master') {
+                        const existingMaster = Array.from(state.modules.values()).find(m => m.type === 'master');
+                        if (existingMaster) {
+                            existingMaster.element.classList.add('highlight');
+                            setTimeout(() => existingMaster.element.classList.remove('highlight'), 500);
+                            return;
+                        }
+                    }
+
+                    const module = createModule(type);
+
+                    module.position = {
+                        x: 100 + Math.random() * 300,
+                        y: 100 + Math.random() * 200
+                    };
+
+                    renderModule(module);
+
+                    if (type === 'master') {
+                        masterOutput = module;
+                        oscilloscope.setAnalyser(module.getAnalyser());
+                    }
+                });
+            });
+
+            // Re-attach create custom button
+            const createBtn = document.getElementById('create-custom-btn');
+            if (createBtn) {
+                createBtn.addEventListener('click', () => {
+                    document.getElementById('module-editor-modal').classList.remove('hidden');
+                });
+            }
+        }
+
+        // Start
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

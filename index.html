@@ -1450,6 +1450,17 @@
             return isOutput ? 'Output signal.' : 'Input signal.';
         }
 
+        function createWarmthCurve(amount = 0.7) {
+            const samples = 44100;
+            const curve = new Float32Array(samples);
+            const k = Math.max(0.1, amount * 20);
+            for (let i = 0; i < samples; i++) {
+                const x = (i * 2) / samples - 1;
+                curve[i] = (1 + k) * x / (1 + k * Math.abs(x));
+            }
+            return curve;
+        }
+
         // Helper to create module with specific ID (for undo/redo)
         function createModuleWithId(type, id) {
             let module;
@@ -1540,21 +1551,63 @@
                 this.params = {
                     channels: { visual: true, auditory: false, tactile: false, internal: false },
                     frequency: 440,
-                    detune: 0
+                    detune: 0,
+                    harmonics: 0.6,
+                    motion: 0.15
                 };
             }
 
             createAudioNodes() {
                 this.audioNodes.oscillator = audioContext.createOscillator();
+                this.audioNodes.subOscillator = audioContext.createOscillator();
+                this.audioNodes.detuneOscillator = audioContext.createOscillator();
+                this.audioNodes.subGain = audioContext.createGain();
+                this.audioNodes.detuneGain = audioContext.createGain();
+                this.audioNodes.mixer = audioContext.createGain();
+                this.audioNodes.filter = audioContext.createBiquadFilter();
+                this.audioNodes.shaper = audioContext.createWaveShaper();
+                this.audioNodes.motionOsc = audioContext.createOscillator();
+                this.audioNodes.motionGain = audioContext.createGain();
                 this.audioNodes.output = audioContext.createGain();
-                this.audioNodes.output.gain.value = 1;
 
                 this.audioNodes.oscillator.type = 'sawtooth';
-                this.audioNodes.oscillator.frequency.value = this.params.frequency;
-                this.audioNodes.oscillator.detune.value = this.params.detune;
+                this.audioNodes.subOscillator.type = 'square';
+                this.audioNodes.detuneOscillator.type = 'triangle';
 
-                this.audioNodes.oscillator.connect(this.audioNodes.output);
+                this.audioNodes.filter.type = 'lowpass';
+                this.audioNodes.filter.frequency.value = 6800;
+                this.audioNodes.filter.Q.value = 0.8;
+
+                this.audioNodes.shaper.curve = createWarmthCurve(0.7);
+                this.audioNodes.shaper.oversample = '4x';
+
+                this.audioNodes.motionOsc.type = 'sine';
+                this.audioNodes.motionOsc.frequency.value = 0.35;
+                this.audioNodes.motionGain.gain.value = this.params.motion * 45;
+
+                this.audioNodes.output.gain.value = 1;
+
+                this.setOscillatorFrequency(this.params.frequency);
+                this.updateHarmonics(this.params.harmonics);
+                this.updateDetune(this.params.detune);
+
+                this.audioNodes.oscillator.connect(this.audioNodes.mixer);
+                this.audioNodes.subOscillator.connect(this.audioNodes.subGain);
+                this.audioNodes.detuneOscillator.connect(this.audioNodes.detuneGain);
+                this.audioNodes.subGain.connect(this.audioNodes.mixer);
+                this.audioNodes.detuneGain.connect(this.audioNodes.mixer);
+                this.audioNodes.mixer.connect(this.audioNodes.filter);
+                this.audioNodes.filter.connect(this.audioNodes.shaper);
+                this.audioNodes.shaper.connect(this.audioNodes.output);
+
+                this.audioNodes.motionOsc.connect(this.audioNodes.motionGain);
+                this.audioNodes.motionGain.connect(this.audioNodes.oscillator.detune);
+                this.audioNodes.motionGain.connect(this.audioNodes.detuneOscillator.detune);
+                this.audioNodes.motionOsc.start();
+
                 this.audioNodes.oscillator.start();
+                this.audioNodes.subOscillator.start();
+                this.audioNodes.detuneOscillator.start();
 
                 this.outputs.set('audio', this.audioNodes.output);
                 this.inputs.set('frequency', this.audioNodes.oscillator.frequency);
@@ -1564,9 +1617,13 @@
             updateParam(name, value) {
                 super.updateParam(name, value);
                 if (name === 'frequency' && this.audioNodes.oscillator) {
-                    this.audioNodes.oscillator.frequency.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                    this.setOscillatorFrequency(value);
                 } else if (name === 'detune' && this.audioNodes.oscillator) {
-                    this.audioNodes.oscillator.detune.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                    this.updateDetune(value);
+                } else if (name === 'harmonics') {
+                    this.updateHarmonics(value);
+                } else if (name === 'motion' && this.audioNodes.motionGain) {
+                    this.audioNodes.motionGain.gain.setTargetAtTime(value * 45, audioContext.currentTime, 0.01);
                 }
             }
 
@@ -1575,9 +1632,37 @@
             }
 
             setFrequency(freq) {
-                if (this.audioNodes.oscillator) {
-                    this.audioNodes.oscillator.frequency.setTargetAtTime(freq, audioContext.currentTime, 0.01);
+                this.setOscillatorFrequency(freq);
+            }
+
+            setOscillatorFrequency(freq) {
+                if (!this.audioNodes.oscillator) return;
+                this.audioNodes.oscillator.frequency.setTargetAtTime(freq, audioContext.currentTime, 0.01);
+                if (this.audioNodes.subOscillator) {
+                    this.audioNodes.subOscillator.frequency.setTargetAtTime(freq / 2, audioContext.currentTime, 0.01);
                 }
+                if (this.audioNodes.detuneOscillator) {
+                    this.audioNodes.detuneOscillator.frequency.setTargetAtTime(freq * 1.01, audioContext.currentTime, 0.01);
+                }
+            }
+
+            updateDetune(value) {
+                if (!this.audioNodes.oscillator) return;
+                this.audioNodes.oscillator.detune.setTargetAtTime(value, audioContext.currentTime, 0.01);
+                if (this.audioNodes.subOscillator) {
+                    this.audioNodes.subOscillator.detune.setTargetAtTime(value * 0.4, audioContext.currentTime, 0.01);
+                }
+                if (this.audioNodes.detuneOscillator) {
+                    this.audioNodes.detuneOscillator.detune.setTargetAtTime(value + 7, audioContext.currentTime, 0.01);
+                }
+            }
+
+            updateHarmonics(value) {
+                if (!this.audioNodes.subGain || !this.audioNodes.detuneGain || !this.audioNodes.filter) return;
+                this.audioNodes.subGain.gain.setTargetAtTime(0.35 * value, audioContext.currentTime, 0.01);
+                this.audioNodes.detuneGain.gain.setTargetAtTime(0.25 * value, audioContext.currentTime, 0.01);
+                const filterTarget = 5200 + (1 - value) * 2200;
+                this.audioNodes.filter.frequency.setTargetAtTime(filterTarget, audioContext.currentTime, 0.01);
             }
 
             createUI() {
@@ -1620,6 +1705,14 @@
                     <div class="control-group">
                         <label>Noise Floor <span class="value">${this.params.detune}</span></label>
                         <input type="range" data-param="detune" min="-100" max="100" value="${this.params.detune}" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>Harmonics <span class="value">${(this.params.harmonics * 100).toFixed(0)}</span>%</label>
+                        <input type="range" data-param="harmonics" min="0" max="1" value="${this.params.harmonics}" step="0.01">
+                    </div>
+                    <div class="control-group">
+                        <label>Motion <span class="value">${(this.params.motion * 100).toFixed(0)}</span>%</label>
+                        <input type="range" data-param="motion" min="0" max="1" value="${this.params.motion}" step="0.01">
                     </div>
                 `;
             }
@@ -3439,7 +3532,8 @@
             const label = input.parentElement?.querySelector('label .value');
             if (label) {
                 if (param === 'level' || param === 'volume' || param === 'sustain' ||
-                    param.startsWith('ch') || param === 'depth' || param === 'clarity' || param === 'decay' || param === 'intensity') {
+                    param.startsWith('ch') || param === 'depth' || param === 'clarity' || param === 'decay' ||
+                    param === 'intensity' || param === 'harmonics' || param === 'motion') {
                     label.textContent = (value * 100).toFixed(0);
                 } else if (param === 'attack' || param === 'release') {
                     label.textContent = value.toFixed(2);

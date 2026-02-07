@@ -25,6 +25,66 @@
             --shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
         }
 
+        body[data-theme="aurora"] {
+            --bg-primary: #08141a;
+            --bg-secondary: #0f1e25;
+            --bg-module: #142630;
+            --bg-module-header: #1a2f3b;
+            --accent-primary: #4ef0c5;
+            --accent-secondary: #f4a261;
+            --accent-tertiary: #70d6ff;
+            --accent-output: #b9fbc0;
+            --text-primary: #edf6f9;
+            --text-secondary: #9cc7d1;
+            --port-audio: #4ef0c5;
+            --port-control: #f4a261;
+            --port-trigger: #ffd166;
+            --cable-audio: #4ef0c5;
+            --cable-control: #f4a261;
+            --border-color: #21404f;
+            --shadow: 0 6px 24px rgba(2, 20, 26, 0.55);
+        }
+
+        body[data-theme="solar"] {
+            --bg-primary: #1b130b;
+            --bg-secondary: #2a1c12;
+            --bg-module: #332116;
+            --bg-module-header: #3a271a;
+            --accent-primary: #ffb703;
+            --accent-secondary: #fb8500;
+            --accent-tertiary: #e76f51;
+            --accent-output: #fef9c3;
+            --text-primary: #fff7e1;
+            --text-secondary: #e0c9a6;
+            --port-audio: #ffb703;
+            --port-control: #fb8500;
+            --port-trigger: #ffd166;
+            --cable-audio: #ffb703;
+            --cable-control: #fb8500;
+            --border-color: #4b3322;
+            --shadow: 0 6px 24px rgba(27, 19, 11, 0.6);
+        }
+
+        body[data-theme="mono"] {
+            --bg-primary: #0f0f10;
+            --bg-secondary: #1a1a1c;
+            --bg-module: #232326;
+            --bg-module-header: #2b2b2f;
+            --accent-primary: #d1d5db;
+            --accent-secondary: #9ca3af;
+            --accent-tertiary: #f3f4f6;
+            --accent-output: #e5e7eb;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --port-audio: #d1d5db;
+            --port-control: #9ca3af;
+            --port-trigger: #6b7280;
+            --cable-audio: #d1d5db;
+            --cable-control: #9ca3af;
+            --border-color: #303036;
+            --shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -67,6 +127,29 @@
             display: flex;
             gap: 15px;
             align-items: center;
+        }
+
+        .theme-picker {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .theme-picker select {
+            padding: 6px 10px;
+            background: var(--bg-module);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+        }
+
+        .theme-picker select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.3);
         }
 
         .header-btn {
@@ -903,6 +986,15 @@
         <header id="header">
             <h1>Personality Synthesizer</h1>
             <div id="header-controls">
+                <label class="theme-picker">
+                    Style
+                    <select id="theme-select" aria-label="Style">
+                        <option value="default">Midnight</option>
+                        <option value="aurora">Aurora</option>
+                        <option value="solar">Solar</option>
+                        <option value="mono">Mono</option>
+                    </select>
+                </label>
                 <button id="undo-btn" class="header-btn" disabled title="Undo">&#8630;</button>
                 <button id="redo-btn" class="header-btn" disabled title="Redo">&#8631;</button>
                 <button id="clear-btn" class="header-btn">Clear Mind</button>
@@ -3539,6 +3631,15 @@
             document.getElementById('power-btn').classList.add('active');
         }
 
+        function applyTheme(theme) {
+            const normalizedTheme = theme && theme !== 'default' ? theme : '';
+            if (normalizedTheme) {
+                document.body.setAttribute('data-theme', normalizedTheme);
+            } else {
+                document.body.removeAttribute('data-theme');
+            }
+        }
+
         function init() {
             // Load custom modules from localStorage
             loadCustomModules();
@@ -3553,6 +3654,18 @@
 
             // Note: Module palette click handlers are now set up in attachPaletteListeners()
             // called by renderPalette()
+
+            const themeSelect = document.getElementById('theme-select');
+            if (themeSelect) {
+                const storedTheme = localStorage.getItem('ps-theme') || 'default';
+                themeSelect.value = storedTheme;
+                applyTheme(storedTheme);
+                themeSelect.addEventListener('change', () => {
+                    const selectedTheme = themeSelect.value;
+                    applyTheme(selectedTheme);
+                    localStorage.setItem('ps-theme', selectedTheme);
+                });
+            }
 
             // Oscilloscope tabs
             document.querySelectorAll('.scope-tab').forEach(tab => {

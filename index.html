@@ -97,6 +97,8 @@
             color: var(--text-primary);
             overflow: hidden;
             height: 100vh;
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
         }
 
         #app {
@@ -202,6 +204,7 @@
                 linear-gradient(90deg, rgba(51, 51, 102, 0.1) 1px, transparent 1px),
                 linear-gradient(rgba(51, 51, 102, 0.1) 1px, transparent 1px);
             background-size: 100% 100%, 20px 20px, 20px 20px;
+            touch-action: none;
         }
 
         #cables {
@@ -231,6 +234,7 @@
             display: flex;
             flex-direction: column;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .sidebar-section {
@@ -374,6 +378,7 @@
             background: var(--bg-module-header);
             border-radius: 7px 7px 0 0;
             cursor: move;
+            touch-action: none;
         }
 
         /* Module category colors */
@@ -589,6 +594,7 @@
             cursor: pointer;
             font-weight: 600;
             transition: all 0.1s;
+            touch-action: none;
         }
 
         .trigger-btn:hover {
@@ -978,6 +984,106 @@
         #add-control-btn {
             width: 100%;
             margin-top: 8px;
+        }
+
+        @media (max-width: 900px) {
+            #header {
+                flex-wrap: wrap;
+                gap: 8px;
+                padding: 10px 12px;
+            }
+
+            #header h1 {
+                font-size: 1.1rem;
+                flex: 1 1 100%;
+            }
+
+            #header-controls {
+                flex-wrap: wrap;
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .header-btn {
+                padding: 10px 14px;
+                font-size: 0.9rem;
+                min-height: 40px;
+            }
+
+            #power-btn {
+                width: 44px;
+                height: 44px;
+            }
+
+            #main {
+                flex-direction: column;
+            }
+
+            #workspace {
+                height: 55vh;
+                min-height: 320px;
+            }
+
+            #sidebar {
+                width: 100%;
+                height: 45vh;
+                border-left: none;
+                border-top: 1px solid var(--border-color);
+            }
+
+            .sidebar-section {
+                padding: 12px;
+            }
+
+            .palette-item {
+                padding: 12px 8px;
+                font-size: 0.72rem;
+            }
+
+            .palette-item .icon {
+                font-size: 1.4rem;
+            }
+
+            .synth-module {
+                min-width: 160px;
+            }
+
+            .module-title {
+                font-size: 0.85rem;
+            }
+
+            .control-group label {
+                font-size: 0.7rem;
+            }
+
+            .port-dot {
+                width: 16px;
+                height: 16px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            #workspace {
+                height: 50vh;
+                min-height: 280px;
+            }
+
+            #sidebar {
+                height: 50vh;
+            }
+
+            .theme-picker select {
+                font-size: 0.8rem;
+            }
+
+            .palette-row {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .preset-btn,
+            .scope-tab {
+                min-height: 36px;
+            }
         }
     </style>
 </head>
@@ -2833,20 +2939,25 @@
             const header = el.querySelector('.module-header');
             let isDragging = false;
             let startX, startY, startLeft, startTop;
+            let activePointerId = null;
 
-            header.addEventListener('mousedown', (e) => {
-                if (e.target.classList.contains('module-delete')) return;
+            header.addEventListener('pointerdown', (e) => {
+                if (e.target.classList.contains('module-delete') || e.target.classList.contains('module-edit')) return;
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
                 isDragging = true;
+                activePointerId = e.pointerId;
+                header.setPointerCapture(e.pointerId);
                 startX = e.clientX;
                 startY = e.clientY;
                 startLeft = el.offsetLeft;
                 startTop = el.offsetTop;
                 el.classList.add('selected');
                 state.selectedModule = module;
+                e.preventDefault();
             });
 
-            document.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
+            header.addEventListener('pointermove', (e) => {
+                if (!isDragging || e.pointerId !== activePointerId) return;
                 const dx = e.clientX - startX;
                 const dy = e.clientY - startY;
                 module.position.x = startLeft + dx;
@@ -2856,9 +2967,18 @@
                 drawCables();
             });
 
-            document.addEventListener('mouseup', () => {
+            const endDrag = () => {
+                if (activePointerId !== null) {
+                    try {
+                        header.releasePointerCapture(activePointerId);
+                    } catch (e) {}
+                }
                 isDragging = false;
-            });
+                activePointerId = null;
+            };
+
+            header.addEventListener('pointerup', endDrag);
+            header.addEventListener('pointercancel', endDrag);
 
             // Delete button
             const deleteBtn = el.querySelector('.module-delete');
@@ -2914,15 +3034,21 @@
             // Trigger button (for ADSR)
             const triggerBtn = el.querySelector('.trigger-btn');
             if (triggerBtn) {
-                triggerBtn.addEventListener('mousedown', () => {
+                triggerBtn.addEventListener('pointerdown', (e) => {
+                    if (e.pointerType === 'mouse' && e.button !== 0) return;
                     module.trigger();
                     triggerBtn.classList.add('active');
+                    e.preventDefault();
                 });
-                triggerBtn.addEventListener('mouseup', () => {
+                triggerBtn.addEventListener('pointerup', () => {
                     module.release();
                     triggerBtn.classList.remove('active');
                 });
-                triggerBtn.addEventListener('mouseleave', () => {
+                triggerBtn.addEventListener('pointercancel', () => {
+                    module.release();
+                    triggerBtn.classList.remove('active');
+                });
+                triggerBtn.addEventListener('pointerleave', () => {
                     module.release();
                     triggerBtn.classList.remove('active');
                 });
@@ -3154,8 +3280,9 @@
         }
 
         let lastMousePos = null;
-        document.getElementById('workspace').addEventListener('mousemove', (e) => {
-            const workspace = document.getElementById('workspace').getBoundingClientRect();
+        const workspaceEl = document.getElementById('workspace');
+        const updatePointerPosition = (e) => {
+            const workspace = workspaceEl.getBoundingClientRect();
             lastMousePos = {
                 x: e.clientX - workspace.left,
                 y: e.clientY - workspace.top
@@ -3163,7 +3290,9 @@
             if (state.pendingConnection) {
                 drawCables();
             }
-        });
+        };
+        workspaceEl.addEventListener('pointermove', updatePointerPosition);
+        workspaceEl.addEventListener('pointerdown', updatePointerPosition);
 
         function drawCable(ctx, x1, y1, x2, y2, color) {
             const midY = Math.max(y1, y2) + 50 + Math.abs(x2 - x1) * 0.2;
@@ -3866,32 +3995,62 @@
             });
 
             // Right-click to delete connection
-            document.getElementById('cables').style.pointerEvents = 'auto';
-            document.getElementById('cables').addEventListener('contextmenu', (e) => {
-                e.preventDefault();
+            const cablesEl = document.getElementById('cables');
+            cablesEl.style.pointerEvents = 'auto';
 
-                const workspace = document.getElementById('workspace').getBoundingClientRect();
-                const x = e.clientX - workspace.left;
-                const y = e.clientY - workspace.top;
-
-                // Find clicked connection
+            function removeConnectionAtPoint(x, y) {
                 for (let i = state.connections.length - 1; i >= 0; i--) {
                     const conn = state.connections[i];
                     const start = conn.sourceModule.getPortPosition(conn.sourcePort, true);
                     const end = conn.targetModule.getPortPosition(conn.targetPort, false);
 
                     if (start && end) {
-                        // Simple distance check to cable midpoint
                         const midX = (start.x + end.x) / 2;
                         const midY = Math.max(start.y, end.y) + 50;
                         const dist = Math.sqrt((x - midX) ** 2 + (y - midY) ** 2);
 
                         if (dist < 30) {
                             removeConnection(conn.id);
-                            return;
+                            return true;
                         }
                     }
                 }
+                return false;
+            }
+
+            cablesEl.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+
+                const workspace = document.getElementById('workspace').getBoundingClientRect();
+                const x = e.clientX - workspace.left;
+                const y = e.clientY - workspace.top;
+
+                removeConnectionAtPoint(x, y);
+            });
+
+            let lastTapTime = 0;
+            let lastTapPos = null;
+            cablesEl.addEventListener('pointerdown', (e) => {
+                if (e.pointerType !== 'touch') return;
+                const workspace = document.getElementById('workspace').getBoundingClientRect();
+                const x = e.clientX - workspace.left;
+                const y = e.clientY - workspace.top;
+                const now = Date.now();
+                const isDoubleTap = lastTapPos &&
+                    (now - lastTapTime) < 300 &&
+                    Math.hypot(x - lastTapPos.x, y - lastTapPos.y) < 20;
+
+                if (isDoubleTap) {
+                    if (removeConnectionAtPoint(x, y)) {
+                        lastTapTime = 0;
+                        lastTapPos = null;
+                        e.preventDefault();
+                        return;
+                    }
+                }
+
+                lastTapTime = now;
+                lastTapPos = { x, y };
             });
 
             // ==================== MODULE EDITOR ====================
